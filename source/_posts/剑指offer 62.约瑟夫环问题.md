@@ -4,7 +4,6 @@ categories: leetcode
 
 tags: [c++]
 ---
-## 约瑟夫环问题
 
 #### 题目描述
 
