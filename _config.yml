@@ -104,4 +104,5 @@ deploy:
   type: git
   repo: git@github.com:wulinze/wulinze.github.io.git 
   branch: master
-  message: "Site updated: {{ now('YYYY-MM-DD HH:mm:ss') }}"    
+  message: "Site updated: {{ now('YYYY-MM-DD HH:mm:ss') }}"
+  theme: minos 
