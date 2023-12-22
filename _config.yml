@@ -96,7 +96,7 @@ ignore:
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: landscape
+theme: minos
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
@@ -105,4 +105,3 @@ deploy:
   repo: git@github.com:wulinze/wulinze.github.io.git 
   branch: master
   message: "Site updated: {{ now('YYYY-MM-DD HH:mm:ss') }}"
-  theme: minos 
