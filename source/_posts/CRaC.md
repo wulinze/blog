@@ -1,0 +1,19 @@
+---
+title: CRaC
+date: 2024-07-05 09:10:31
+tags:
+---
+## CRaC介绍
+CRaC是openjdk的开源项目，支持JVM创建检查点的功能，通过设置参数-XX:CRaCCheckpointTo=checkpointpath设置检查点的目录即可创建JVM检查点，通过-XX:CRaCRestoreFrom=checkpointpath即可恢复JVM进程，CRaC可以有效的减少类加载、编译以及预热时间。
+## criu介绍
+criu是一个保存进程状态的应用，通过criu可以保存哪些没有fd状态的进程，将进程信息dump到物理磁盘中，并且可以通过物理磁盘恢复进程状态，criu可以在用户态做到进程的checkpoint和restore。
+## CRaC原理简介
+CRaC可以理解为是一个支持创建检查点的hotspot，可以通过criu在用户态创建进程的检查点，暂存jvm目前的运行状态。暂存jvm进程的状态可以很好的减少warmup的时间。
+
+JVM存在的比较大的问题就是预热问题，这是所有解释性语言的通病。在程序运行初期代码通过解释器解释运行，因为解释器是一行一行解释执行代码执行效率低下，因此HotSpot初始情况下运行效率低，cpu使用率高往往编译线程将cpu打高。warmup阶段一般包含类加载，加载框架，编译java类的时间。针对于这三部分问题社区给出过很多的解决方案，对于类加载有AppCDS技术，编译时间有JITServer。但是都没有CRaC的解决方案直接，CRaC可以直接dump进程的内存和其他信息，直接将三个问题解决，目前的痛点是dump下来的文件有点大这是一个问题期待后续可以解决。
+
+CRaC的检查点操作是通过JCMD触发的。JVM中ServiceThread负责处理线程的IPC，在JCMD触发之后JVM通过一个JavaThread触发Java的调用栈，保存注册在CRaC维护的globalext中的context信息，context中存储着所有需要处理的Resource一般来讲是所有的fd信息。这里面涉及一个问题，在CRaC中为了保证进程能够被正确的恢复需要在保存进程状态之前通过用户正确的处理状态，CRaC提供了两个接口beforecheckpoint和afterrestore，用户需要继承Resource类将所有的fd暂存操作是现在before中，将恢复的操作放到after中。
+
+在完成Java调用之后，返回到c++侧会进行一个full gc将当前的堆进行垃圾回收，执行之后将保存检查点的操作放到vm thread中执行，vm thread会fork出一个criu的子进程通过调用criu dump操作完成对于进程的检查点。
+
+这里需要注意的问题是，CRaC不支持fd的多数操作，在FileDescriptor中实现了对于fd的监管和资源的注册，当用户打开了fd但是没有关闭，此时CRaC会抛出异常来阻止用户的检查点行为。
