@@ -128,7 +128,8 @@ TenantConfiguration config = new TenantConfiguration().limitCpuShares(1024);
     3. vmSymbols.hpp:添加在jdk中增加的类型
 #### jdk java
 添加必要的API
-
+d786fdbfaee8765e2dfc95777c460a737d0330ff
+8e20eb9957e46ec424fd158818048272cfd82e08
 
 参考： 
 
