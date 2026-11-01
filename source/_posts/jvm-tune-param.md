@@ -1,8 +1,10 @@
 ---
-title: jvm tune param
-date: 2023-12-20 03:17:50
-categories: jvm
-tags: param
+title: "JVM 调优参数备忘"
+date: "2023-12-20 03:17:50"
+categories: ["JVM 与 Java"]
+tags: ["JVM", "性能调优", "垃圾回收"]
+description: "按 GC、内存、预取、JIT、大页与协程分类记录 JVM 调优参数。"
+permalink: "/2023/12/20/jvm-tune-param/"
 ---
 ## 调优参数
 

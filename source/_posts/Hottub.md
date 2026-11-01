@@ -1,7 +1,10 @@
 ---
-title: Hottub
-date: 2024-07-24 13:28:59
-tags:
+title: "Hottub 编译与启动计时笔记"
+date: "2024-07-24 13:28:59"
+categories: ["JVM 与 Java"]
+tags: ["JVM", "Hottub", "编译"]
+description: "记录 Hottub 编译选项调整及虚拟机创建阶段的计时变量。"
+permalink: "/2024/07/24/Hottub/"
 ---
 ## Hottub学习
 * 编译

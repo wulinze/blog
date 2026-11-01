@@ -1,7 +1,10 @@
 ---
-title: CRaC
-date: 2024-07-05 09:10:31
-tags:
+title: "CRaC：JVM 检查点与恢复"
+date: "2024-07-05 09:10:31"
+categories: ["JVM 与 Java"]
+tags: ["JVM", "CRaC", "CRIU", "启动优化"]
+description: "记录 CRaC 与 CRIU 的关系、检查点流程、恢复机制及文件描述符的处理。"
+permalink: "/2024/07/05/CRaC/"
 ---
 ## CRaC介绍
 CRaC是openjdk的开源项目，支持JVM创建检查点的功能，通过设置参数-XX:CRaCCheckpointTo=checkpointpath设置检查点的目录即可创建JVM检查点，通过-XX:CRaCRestoreFrom=checkpointpath即可恢复JVM进程，CRaC可以有效的减少类加载、编译以及预热时间。

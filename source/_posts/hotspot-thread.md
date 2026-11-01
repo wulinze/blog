@@ -1,14 +1,17 @@
 ---
-title: hotspot-thread
-date: 2024-07-16 08:50:11
-tags:
+title: "HotSpot 线程模型与执行流程"
+date: "2024-07-16 08:50:11"
+categories: ["JVM 与 Java"]
+tags: ["JVM", "HotSpot", "线程"]
+description: "记录 Java Thread 与 pthread 的关联、HotSpot 线程层次和后台线程职责。"
+permalink: "/2024/07/16/hotspot-thread/"
 ---
-# HotSpot 中的Thread
-## Java中的Thread的执行逻辑
+## HotSpot 中的Thread
+### Java中的Thread的执行逻辑
 Java中的Thread代表JVM中运行的线程，实际在运行过程中会绑定到linux中的pthread，Java在创建Thread的时候并不会直接通过pthread_create创建线程，只有在调用.start()方法的时候才会创建线程，并且通过调用JNI的方式绑定到具体的run()逻辑。
-## HotSpot中的Thread逻辑图
+### HotSpot中的Thread逻辑图
 在HotSpot中Thread分为多级，具体的继承关系和层级结构
-![alt text](image.png)
+![alt text](/images/image.png)
 其中NamedThread包括VMThread和GCThread等
 
 JavaThread一般申请为java的应用线程，在java启动一个Thread的时候会调用pthread_create初始化其中的OSThread

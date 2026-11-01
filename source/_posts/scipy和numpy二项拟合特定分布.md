@@ -1,7 +1,10 @@
 ---
-title: scipy和numpy二项拟合特定分布
-date: 2024-01-10 08:40:37
-tags:
+title: "使用 NumPy 与 SciPy 拟合自定义分布"
+date: "2024-01-10 08:40:37"
+categories: ["数学与计算"]
+tags: ["Python", "NumPy", "SciPy", "数值计算"]
+description: "记录双峰数据的拟合思路、SciPy 自定义分布与反函数求解示例。"
+permalink: "/2024/01/10/scipy和numpy二项拟合特定分布/"
 ---
 ## 通过泰勒展开的方式拟合特定分布
 * 起因

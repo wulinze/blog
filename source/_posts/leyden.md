@@ -1,7 +1,10 @@
 ---
-title: leyden
-date: 2024-08-12 07:52:00
-tags:
+title: "Leyden：JVM 启动与预热优化笔记"
+date: "2024-08-12 07:52:00"
+categories: ["JVM 与 Java"]
+tags: ["JVM", "Leyden", "CDS", "启动优化"]
+description: "记录 Leyden 早期版本基于 CDS 的类预加载、缓存和方法分析数据复用机制。"
+permalink: "/2024/08/12/leyden/"
 ---
 ## Leyden 介绍
 leyden是openjdk社区的开源项目，主要是为了加快JVM启动速度的，通过cds，code的dump文件来加速JVM启动速度。提供了一组参数用来生产dump文件，具体情况可以参考对应项目的readme。https://github.com/openjdk/leyden/tree/leyden-ea1-release-notes

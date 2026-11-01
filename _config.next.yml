@@ -1,0 +1,94 @@
+# NexT 通过 npm 安装，不直接修改 node_modules 中的主题文件。
+scheme: Mist
+darkmode: false
+index_with_subtitle: true
+menu:
+  home: / || fa fa-home
+  categories: /categories/ || fa fa-layer-group
+  tags: /tags/ || fa fa-tags
+  archives: /archives/ || fa fa-archive
+  about: /about/ || fa fa-user
+menu_settings:
+  icons: false
+  badges: false
+sidebar:
+  position: right
+  display: post
+  width_expanded: 300
+social:
+  GitHub: https://github.com/wulinze || fab fa-github
+social_icons:
+  enable: true
+  icons_only: false
+avatar:
+  url: /images/avatar.svg
+  rounded: true
+  rotated: false
+favicon:
+  small: false
+  medium: false
+  apple_touch_icon: false
+  safari_pinned_tab: /images/avatar.svg
+footer:
+  since: 2023
+  icon:
+    name: fa fa-code
+    color: '#1c685b'
+    animated: false
+  powered: true
+creative_commons:
+  sidebar: false
+  post: false
+post_meta:
+  item_text: true
+  created_at: true
+  updated_at:
+    enable: false
+  categories: true
+excerpt_description: true
+read_more_btn: true
+post_edit:
+  enable: false
+toc:
+  enable: true
+  number: false
+  wrap: true
+  expand_all: false
+codeblock:
+  theme:
+    light: github
+    dark: github-dark
+  copy_button:
+    enable: true
+    style: flat
+back2top:
+  enable: true
+  sidebar: false
+  scrollpercent: true
+font:
+  enable: false
+motion:
+  enable: false
+local_search:
+  enable: true
+  top_n_per_article: 2
+  unescape: true
+  preload: false
+math:
+  every_page: true
+  mathjax:
+    enable: false
+  katex:
+    enable: true
+    copy_tex: false
+rss: /atom.xml
+vendors:
+  internal: local
+  plugins: cdnjs
+  fontawesome: /assets/fontawesome/css/all.min.css
+  katex: /assets/katex/katex.min.css
+  local_search: /assets/local-search/search.js
+custom_file_path:
+  head: theme-overrides/head.njk
+  header: theme-overrides/header.njk
+  style: theme-overrides/styles.styl

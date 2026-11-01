@@ -1,7 +1,10 @@
 ---
-title: jvm-multi-tenant
-date: 2024-04-07 06:15:46
-tags:
+title: "JVM 多租户与 Cgroup 资源隔离"
+date: "2024-04-07 06:15:46"
+categories: ["JVM 与 Java"]
+tags: ["JVM", "多租户", "Cgroup"]
+description: "整理 JVM 多租户的环境隔离、资源限制与 Cgroup 子系统相关笔记。"
+permalink: "/2024/04/07/jvm-multi-tenant/"
 ---
 ## JVM Tenant介绍 
 ### Tenant 特性
@@ -73,16 +76,16 @@ net_prio        5       4       1
 
     cgroup on /sys/fs/cgroup/systemd type cgroup 用于 systemd 系统对 cgroups 的支持。
 3. 层级关系
-![](images/cgroup.png)
+![](/images/cgroup.png)
 * 关联规则
     * 单个层级可以关联多个子系统
-    ![](images/rule1.png)
+    ![](/images/rule1.png)
     * 挂载后子系统不能更改关联
-    ![](images/rule2.png)
+    ![](/images/rule2.png)
     * task可以关联多个cgroup，单层级只能关联一个
-    ![](images/rule3.png)
+    ![](/images/rule3.png)
     * 子进程自动继承父进程的cgroup关系。子进程也可以根据实际使用需要移动到其他cgroup中。
-    ![](images/rule4.png)
+    ![](/images/rule4.png)
 
 ### JVM多租户运行并绑定Cgroup
 * JVM启动参数说明
@@ -95,7 +98,7 @@ net_prio        5       4       1
 | -Dcom.alibaba.tenant.jgroup.confirmGroup  | 指定JVM进程运行Cgroup层级        |否 |
 * 多租户环境隔离
 TenantContainer负责租户的运行环境管理，包括租户id的分配和环境变量的设置，TenantContainer通过TenantConfiguration进行设置，TenantConfiguration包含对应的系统资源(CPU)设置(对应哈希表进行维护)，通过Cgroup对于TenantConfiguration的设置进行限制。TenantContainer对应一个具体的TenantResourceContainer，TenantResourceContainer负责对于进程运行时的具体资源信息进行管理包括Cgroup的创建删除(具体实现由JGroup调用JNI实现)，租户的运行情况等信息。
-![](images/tenant.webp)
+![](/images/tenant.webp)
 简单说TenantContainer负责维护租户的隔离信息，TenantResourceContainer负责维护租户的运行信息。
 ### 多租户运行示例
 ~~~ java

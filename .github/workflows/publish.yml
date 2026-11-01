@@ -1,0 +1,51 @@
+name: Validate and publish blog
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - run: npm run check:site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-site
+          path: public/
+          include-hidden-files: true
+      - name: Publish to wulinze.github.io
+        if: github.event_name != 'pull_request'
+        env:
+          BLOG_DEPLOY_KEY: ${{ secrets.BLOG_DEPLOY_KEY }}
+        run: |
+          if [ -z "$BLOG_DEPLOY_KEY" ]; then
+            echo 'Build verified. Configure BLOG_DEPLOY_KEY to enable automatic publishing.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$BLOG_DEPLOY_KEY" > "$RUNNER_TEMP/blog_deploy_key"
+          chmod 600 "$RUNNER_TEMP/blog_deploy_key"
+          ssh-keyscan -p 443 ssh.github.com >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/blog_deploy_key -o IdentitiesOnly=yes"
+          node tools/publish.mjs
+          rm -f "$RUNNER_TEMP/blog_deploy_key"

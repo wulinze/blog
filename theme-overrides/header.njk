@@ -1,0 +1,12 @@
+{% if is_home() and page.current == 1 %}
+<section class="journal-intro" aria-label="博客介绍">
+  <p class="journal-eyebrow">WULINZE / ENGINEERING NOTES</p>
+  <h1>在问题中探索，<br>在实践中理解。</h1>
+  <p class="journal-summary">关于代码、系统与算法的技术分享。记录原理，也记录走过的弯路。</p>
+  <div class="journal-links">
+    <a href="/categories/">按主题阅读 <span aria-hidden="true">↗</span></a>
+    <a href="/about/">关于我 <span aria-hidden="true">↗</span></a>
+    <a href="https://github.com/wulinze">GitHub <span aria-hidden="true">↗</span></a>
+  </div>
+</section>
+{% endif %}

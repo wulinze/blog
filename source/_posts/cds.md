@@ -1,7 +1,10 @@
 ---
-title: cds
-date: 2024-08-13 09:52:05
-tags:
+title: "CDS 与 AppCDS：类数据共享笔记"
+date: "2024-08-13 09:52:05"
+categories: ["JVM 与 Java"]
+tags: ["JVM", "CDS", "启动优化"]
+description: "记录 CDS 与 AppCDS 的复用思路、归档方式和相关启动参数。"
+permalink: "/2024/08/13/cds/"
 ---
 ## CDS
 CDS最初是class Data-sharing允许多个JVM通过内存映射的方式节省内存，但后续发现内存不是瓶颈，但是可以节省相同的查找，加载，验证时间。
