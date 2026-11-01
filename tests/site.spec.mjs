@@ -53,3 +53,47 @@ test('legacy category and pagination links redirect to the new directory', async
   await page.goto('/page/2/');
   await expect(page).toHaveURL(/\/blog\/page\/2\//);
 });
+
+test('desktop reading guide stays on the left and tracks chapter navigation', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/llm/qwen35-context-parallel/');
+  const guide = page.locator('#reading-guide');
+  expect((await page.locator('header.header').boundingBox()).y).toBe(0);
+  await expect(guide.locator('.guide-context')).toContainText('Qwen3.5');
+  const sidebar = await guide.boundingBox();
+  const article = await page.locator('.main-inner.post').boundingBox();
+  expect(sidebar.x + sidebar.width).toBeLessThan(article.x);
+  await expect(guide.locator('.nav-child').first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('reading-desktop.png') });
+  const target = guide.getByRole('link', { name: '3. GDN：分别处理卷积 halo 与递推状态', exact: true });
+  await target.click();
+  await expect(target).toHaveAttribute('aria-current', 'location');
+  const pinned = await guide.boundingBox();
+  expect(pinned.y).toBeGreaterThanOrEqual(0);
+  expect(pinned.y).toBeLessThan(30);
+  const code = page.locator('.post-body figure.highlight .code pre').first();
+  expect(await code.evaluate(el => getComputedStyle(el).fontSize)).toBe('16px');
+  expect(await page.locator('.post-body img').count()).toBe(16);
+});
+
+test('mobile reading guide opens with keyboard, follows links and closes with Escape', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/llm/qwen35-context-parallel/');
+  const toggle = page.getByRole('button', { name: '打开文章目录', exact: true });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
+  await page.screenshot({ path: testInfo.outputPath('reading-mobile.png') });
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  const close = page.getByRole('button', { name: '关闭文章目录', exact: true });
+  await expect(close).toHaveAttribute('aria-expanded', 'true');
+  await expect.poll(async () => Math.round((await page.locator('#reading-guide').boundingBox()).x)).toBe(0);
+  await page.screenshot({ path: testInfo.outputPath('reading-mobile-guide.png') });
+  await page.locator('#reading-guide').getByRole('link', { name: '整体计算流程', exact: true }).click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page).toHaveURL(/#%E6%95%B4%E4%BD%93/);
+  await toggle.click();
+  await page.keyboard.press('Escape');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toBeFocused();
+});

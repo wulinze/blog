@@ -39,6 +39,8 @@ npx hexo new post "文章标题"
 
 ## 检查与发布
 
+文章页采用左侧章节导航与右侧正文布局。`source/css/reading.css` 管理阅读版式，`source/js/reading-guide.js` 补充章节信息、当前章节标识和手机目录交互；NexT Pisces 提供目录生成与滚动定位。目录在桌面常驻左侧，在手机通过“文章目录”按钮展开。
+
 ```bash
 npm run check          # 文章元数据与历史地址
 npm test               # Markdown 渲染与安全发布流程
