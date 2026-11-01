@@ -39,7 +39,7 @@ npx hexo new post "文章标题"
 
 ## 检查与发布
 
-文章页采用左侧章节导航与右侧正文布局。`source/css/reading.css` 管理阅读版式，`source/js/reading-guide.js` 补充章节信息、当前章节标识和手机目录交互；NexT Pisces 提供目录生成与滚动定位。目录在桌面常驻左侧，在手机通过“文章目录”按钮展开。
+全站默认使用深色背景，不随系统外观切换；`source/css/palette.css` 统一维护首页、阅读页、搜索和 404 页的颜色，代码高亮使用 GitHub Dark。原始系统设计图保留图片自身底色与标注。文章页采用左侧章节导航与右侧正文布局。`source/css/reading.css` 管理阅读版式，`source/js/reading-guide.js` 补充章节信息、当前章节标识和手机目录交互；NexT Pisces 提供目录生成与滚动定位。目录在桌面常驻左侧，在手机通过“文章目录”按钮展开。
 
 ```bash
 npm run check          # 文章元数据与历史地址

@@ -39,13 +39,26 @@ GDN 使用连续序列段，保证递推顺序；Full Attention 使用 round-rob
 
 `prepare_attn` 根据当前层与 metadata 转换 hidden/residual，同布局时直接复用。`--prefill-cp-mode round-robin-split` 对应交错 query，`in-seq-split` 对应 zigzag；两者都保持 GDN 连续分片。该参数描述序列布局，不限定请求并发数。
 
-设 CP 大小为 $C$，hidden size 为 $D$，Q/KV head 数为 $H_q/H_{kv}$，head dimension 为 $d_h$，逻辑页大小为 $P$。hidden 的本地形状为 $[N_{local},D]$，Q 为 $[N_q,H_q,d_h]$，保留完整 hidden/head 维度。在页大小可被 $C$ 整除的配置下，本地单页 K、V 各为 $[P/C,H_{kv},d_h]$。
+下文的 rank 指 CP 组中的设备编号，从 0 到 $C-1$。张量形状中的方括号按轴顺序列出长度：
+
+| 符号 | 含义 |
+| --- | --- |
+| $C$ | CP 组的设备数；CP4 表示 $C=4$ |
+| $D$ | 每个 token 的 hidden 向量长度 |
+| $H_q, H_{kv}$ | query head 数、KV head 数 |
+| $d_h$ | Full Attention 中每个 head 的维度 |
+| $N_{local}, N_q$ | 当前算子在本 rank 上的 hidden 行数、query 行数；有效行由 metadata 标识 |
+| $P$ | 一个逻辑 KV 页能容纳的 token 数 |
+
+hidden 的本地形状为 $[N_{local},D]$，Q 为 $[N_q,H_q,d_h]$：CP 切分 token 轴，保留完整 hidden/head 维度。在页大小可被 $C$ 整除的配置下，每个 rank 保存一页中的 $P/C$ 行，本地单页 K、V 各为 $[P/C,H_{kv},d_h]$。
 
 GDN 每请求的物理段宽按下式对齐，其中 $N$ 是本次新增 token 数：
 
 $$
 L_{physical}=64\left\lceil\frac{N}{64C}\right\rceil.
 $$
+
+$\lceil x\rceil$ 表示向上取整。先将每卡平均长度 $N/C$ 除以 64 并向上取整，再乘 64，得到足以容纳数据的 64 行对齐段宽。例如 $N=1000,C=4$ 时，$N/C=250$，物理段宽为 256；分配空间共 1024 行，其中只有 1000 行对应有效 token。这里的 64 是该算子路径的对齐粒度，不是 CP 设备数。
 
 padding 只服务算子对齐，不进入有效 MoE 路由、KV 写入或真实状态更新。请求长度、prefix、有效 token 和还原映射均逐请求记录，尾部和空 shard 按实际长度处理。
 
@@ -70,14 +83,38 @@ padding 只服务算子对齐，不进入有效 MoE 路由、KV 写入或真实�
 
 *Full Attention 的 KV 轮转、双缓冲与输出归并*
 
-轮转的是 KV，合并的是 attention 输出。若第 $r$ 个非空分片返回归一化输出 $O_r$ 和自然对数形式的 LSE $\ell_r$，则可用以下形式表达合并关系：
+### 为什么需要 LSE 加权合并
+
+固定一个 query 行和一个 head 来看：$q$ 是 query 向量，$k_j,v_j$ 是位置 $j$ 的 key 和 value，$J_r$ 是第 $r$ 个 KV 分片中通过 causal mask 的可见位置集合。各 $J_r$ 互不重叠，它们的并集构成该 query 的全部可见历史。采用标准缩放点积时：
 
 $$
-m=\max_r\ell_r,\qquad
+z_j=\frac{q^{\mathsf T}k_j}{\sqrt{d_h}},\qquad
+Z_r=\sum_{j\in J_r}e^{z_j}.
+$$
+
+$z_j$ 是 attention 分数，$Z_r$ 是这个分片的 softmax 分母。上标 $\mathsf T$ 表示转置，$e^x$ 表示自然指数，$\sum$ 表示对指定集合求和。每轮 kernel 返回的两个量是：
+
+$$
+O_r=\frac{\sum_{j\in J_r}e^{z_j}v_j}{Z_r},\qquad
+\ell_r=\log Z_r.
+$$
+
+$O_r$ 是已经在本分片内归一化的输出向量；$\ell_r$ 是标量 log-sum-exp（LSE），这里 $\log$ 为自然对数。它记录该分片的归一化权重，不能仅凭 $O_r$ 恢复全局结果。把全局分子、分母按分片拆开，得到：
+
+$$
+O=\frac{\sum_r\sum_{j\in J_r}e^{z_j}v_j}{\sum_r Z_r}
+ =\frac{\sum_r Z_r O_r}{\sum_r Z_r}.
+$$
+
+因此应按 $Z_r$ 加权，而非直接平均各个 $O_r$。例如两个分片的 $Z_0=1,Z_1=3$，某个输出分量为 $O_0=2,O_1=6$，合并值是 $(1\times2+3\times6)/(1+3)=5$，不是 4。
+
+直接计算 $Z_r=e^{\ell_r}$ 可能溢出。令 $m=\max_r\ell_r$（所有有效分片 LSE 的最大值），将分子、分母同时除以 $e^m$，就得到数值稳定的形式：
+
+$$
 O=\frac{\sum_r e^{\ell_r-m}O_r}{\sum_r e^{\ell_r-m}}.
 $$
 
-这是对分片 softmax 合并的数学表达；具体 backend 的 LSE 对数底数需先统一，全 masked 的行需单独处理，不能直接计算未定义的差值。
+这就是图中“输出归并”的计算：KV 在设备间轮转，每个 query/head 的输出和 LSE 在本地合并。backend 若返回其他对数底数的 LSE，应先转换。对当前 query 完全不可见的分片权重为 0，应跳过；如果所有分片都被 mask，则按 backend 的空行约定处理，避免计算 $-\infty-(-\infty)$ 或除以 0。
 
 ### Query owner 与本地行序
 
@@ -98,7 +135,9 @@ kv_owner = (prefix_len + new_token_index) % cp_size
 page_row = local_row * cp_size + rank
 ```
 
-不能在每个新 chunk 从 rank0 重新计数。物理 slot 继续由现有页表、分配器与 CP 映射定位，逻辑位置不能直接充当物理地址。
+第一行中，`prefix_len` 是已处理的前缀长度，`new_token_index` 从 0 开始，`%` 表示取余。例如前缀长 5、CP4 时，第一个新 token 的 owner 是 `5 % 4 = 1`，不能在每个新 chunk 从 rank0 重新计数。
+
+第二行描述**单个逻辑页内**交错分片的逆映射：`local_row` 是本 rank 在该页中的行号，`rank` 是 owner 编号，两者均从 0 开始。例如 CP4 下 rank1 的本地第 2 行，对应逻辑页内第 `2 * 4 + 1 = 9` 行。物理 slot 继续由现有页表、分配器与 CP 映射定位，逻辑位置不能直接充当物理地址。
 
 KV ring 通过 `--attn-cp-transport` 选择 `nccl` 或 `symm_rma`，通信流与计算流以事件衔接。KV ring、GDN 状态通信和 Mega dispatch 是不同通路，应分别管理依赖。Attention 继续复用已有 FA3/TRTLLM prefill backend，CP 不改变 backend 的 dtype 约束。
 
@@ -114,24 +153,122 @@ KV ring 通过 `--attn-cp-transport` 选择 `nccl` 或 `symm_rma`，通信流与
 
 *GDN 短卷积读取前驱 halo 的数据流*
 
-### 有序状态摘要
+### 从单个 token 的递推开始
 
-每段产生局部贡献 $H$ 与状态变换 $M$。为解释组合顺序，这里将状态向量化，并约定以左乘形式表示一段的作用：
+这里的 $S_t$ 是同一请求、同一层、同一个 GDN head 处理完第 $t$ 个 token 后的 **temporal state**，承载累积的 key/value 关联。它与上一小节的卷积历史分别保存。为统一后续左乘记法，取 $S_t\in\mathbb R^{d_k\times d_v}$，其中 $d_k,d_v$ 分别为 GDN 的 key/query、value 维度；省略 batch、layer、head 索引。
+
+令 $k_t\in\mathbb R^{d_k}$、$v_t\in\mathbb R^{d_v}$ 为当前 token 的列向量，$\alpha_t$ 为旧状态的衰减门，$\beta_t$ 为本次更新的强度。Gated Delta Rule 可写成：
 
 $$
-S_{out}=MS_{in}+H.
+\begin{aligned}
+\widetilde S_t &= \alpha_t S_{t-1},\\
+S_t &= \widetilde S_t
+ +\beta_t k_t\bigl(v_t^{\mathsf T}-k_t^{\mathsf T}\widetilde S_t\bigr).
+\end{aligned}
 $$
 
-先执行段 $a$，再执行段 $b$，组合关系为：
+先衰减旧状态，再用当前 key 读出预测值 $k_t^{\mathsf T}\widetilde S_t$，计算它与目标 $v_t^{\mathsf T}$ 的差，最后将这个差写回状态。$k_t(\cdots)$ 是列向量与行向量的外积，结果仍为 $d_k\times d_v$ 矩阵。此处采用[原论文式（8）](https://arxiv.org/html/2412.06464v1#S3.E8)的转置状态约定；论文的状态为 $d_v\times d_k$，转置后计算含义相同。
+
+展开括号，把依赖旧状态的部分收在一起：
+
+$$
+\begin{aligned}
+S_t &= \alpha_t(I-\beta_t k_tk_t^{\mathsf T})S_{t-1}
+       +\beta_t k_tv_t^{\mathsf T}\\
+    &= A_t S_{t-1}+B_t,\\
+A_t &= \alpha_t(I-\beta_t k_tk_t^{\mathsf T}),\qquad
+B_t = \beta_t k_tv_t^{\mathsf T}.
+\end{aligned}
+$$
+
+$I$ 是 $d_k\times d_k$ 单位矩阵，$A_t$ 是同形状的状态变换矩阵，$B_t$ 是 $d_k\times d_v$ 的新增状态。相邻矩阵写在一起表示矩阵乘法。对已经给定的本层输入，$A_t,B_t$ 可由本地 token 算出，不需要先知道前段的最终状态；但得到真实的 $S_t$ 仍需要 $S_{t-1}$。这正是可以先计算局部摘要、再补齐跨段依赖的原因。
+
+### 一段 token 如何变成状态摘要
+
+设段 $a$ 的输入状态为 $S_{in}$。先看段内两个 token，把第二步中的状态用第一步代入：
+
+$$
+\begin{aligned}
+S_1 &= A_1 S_{in}+B_1,\\
+S_2 &= A_2(A_1 S_{in}+B_1)+B_2\\
+    &= (A_2A_1)S_{in}+(A_2B_1+B_2).
+\end{aligned}
+$$
+
+所以任意长度的一段都能表示成一个“先线性变换、再加贡献”的仿射映射：
+
+$$
+F_a(S)=M_a S+H_a.
+$$
+
+$M_a\in\mathbb R^{d_k\times d_k}$ 表示整段如何变换传入状态；$H_a\in\mathbb R^{d_k\times d_v}$ 是以零状态进入该段时得到的最终状态，已经包含段内后续 token 对早期贡献的作用。上面的两步例子中，$M_a=A_2A_1$，$H_a=A_2B_1+B_2$，因此 $H_a$ 不是简单累加 $B_1+B_2$。
+
+局部摘要可从 $M^{(0)}=I,H^{(0)}=0$ 开始，依次处理段内第 $j$ 个 token：
+
+$$
+\begin{aligned}
+M^{(j)} &= A_jM^{(j-1)},\\
+H^{(j)} &= A_jH^{(j-1)}+B_j.
+\end{aligned}
+$$
+
+上标 $(j)$ 表示处理到第几步，不是幂；最后一步的 $(M,H)$ 就是整段摘要。这个递推用于说明数学语义，kernel 可以使用等价的分块算法及紧凑表示，不必显式构造每个 $A_j$。
+
+### 圈号 ∘：按序复合两段状态更新
+
+**$\circ$ 表示函数复合，右侧先执行。** 若段 $a$ 在序列中先于段 $b$，则 $(F_b\circ F_a)(S)=F_b(F_a(S))$，意思是先把状态送入 $a$，再把 $a$ 的输出送入 $b$。逐步代入：
+
+$$
+\begin{aligned}
+S_{mid} &= M_a S_{in}+H_a,\\
+S_{out} &= M_b S_{mid}+H_b\\
+        &= M_b(M_a S_{in}+H_a)+H_b\\
+        &= (M_bM_a)S_{in}+(M_bH_a+H_b).
+\end{aligned}
+$$
+
+比较最终表达式中乘 $S_{in}$ 的系数与新增贡献，就得到整段 $a\to b$ 的摘要：
 
 $$
 (M_b,H_b)\circ(M_a,H_a)
 =(M_bM_a,\ M_bH_a+H_b).
 $$
 
-这一表达用于说明摘要的有序组合；实际 kernel 的张量布局和乘法方向应以实现约定为准。组合顺序与原序列一致，不能将状态摘要当作普通数值求和，也不能用一次广播替代前缀计算。
+这里把函数复合记到摘要对 $(M,H)$ 上，**不是两个元组逐项相乘**。其中 $H_a$ 还要经过后段的 $M_b$ 变换，不能直接把 $H_a,H_b$ 相加。
 
-peer-prefix kernel 从对称内存读取前面各段摘要，按序得到本段初始 state，再生成本段输出与快照。实现也保留 ring 算法和未启用对称内存时的兼容路径。
+用一个标量算例看顺序：设 $F_a(x)=2x+1$，$F_b(x)=3x+4$，则 $F_b(F_a(x))=6x+7$。取 $x=5$，依次执行得到 $5\to11\to37$，组合后也是 $6\times5+7=37$；反过来执行则为 $F_a(F_b(x))=6x+9$。这些数字仅用于演示仿射复合，不代表模型参数。
+
+复合满足结合律：三段可以先求 $F_b\circ F_a$，再与 $F_c$ 复合；也可以先求 $F_c\circ F_b$，再与 $F_a$ 复合。两种分组都必须保持 $a\to b\to c$ 的执行顺序。两种括号分组都得到：
+
+$$
+\begin{aligned}
+M_{abc} &= M_cM_bM_a,\\
+H_{abc} &= M_cM_bH_a+M_cH_b+H_c.
+\end{aligned}
+$$
+
+这允许使用有序的并行前缀扫描；它通常不满足交换律，不能交换段的位置，也不能用普通求和替代。
+
+### 从摘要恢复每个 CP 段的初始状态
+
+按请求的序列顺序给 CP 段编号 $0,1,\ldots,C-1$，每段摘要对应映射 $F_r$。设 $S_{base}$ 是本次 chunk 开始前的状态：前缀命中时从 checkpoint 读取，从头计算时通常为零。各段输入为：
+
+$$
+\begin{aligned}
+S_{in,0} &= S_{base},\\
+S_{in,1} &= F_0(S_{base}),\\
+S_{in,2} &= F_1(F_0(S_{base})).
+\end{aligned}
+$$
+
+一般地，段 $r$ 只组合它**之前**的段 $0$ 到 $r-1$，不包含自己，这称为 exclusive prefix（排他前缀）。空段使用恒等摘要 $(I,0)$，经过它后状态不变。按此规则，图中的计算过程是：
+
+1. 每个 rank 根据本段 token 生成 $(M_r,H_r)$，并发布到通信工作区。
+2. peer-prefix kernel 读取本请求前面各段的摘要，按序复合后作用于 $S_{base}$，得到本段真实的 $S_{in,r}$。
+3. 将本段内部的递推或分块计算应用于这个初始状态，得到逐 token 输出及所需 checkpoint。单个 head 的核心读出为 $o_t=S_t^{\mathsf T}q_t$，其中 $q_t\in\mathbb R^{d_k}$，$o_t\in\mathbb R^{d_v}$；后续门控与输出投影由模型层继续完成。
+4. 本段末尾状态为 $S_{out,r}=M_rS_{in,r}+H_r$，发布给对应的缓存 owner。
+
+因此，整段摘要负责传递“这段对输入状态做了什么”，真实初始状态负责恢复正确输出；只有末尾摘要还不能替代逐 token 的段内计算。实现也保留 ring 算法和未启用对称内存时的兼容路径，各路径遵守相同的有序组合关系。
 
 [![GDN 局部状态摘要、有序前缀合成与快照发布](/images/qwen35-context-parallel/gdn-state-prefix.png)](/images/qwen35-context-parallel/gdn-state-prefix.png)
 
@@ -211,6 +348,8 @@ def state_location(slot, cp_size):
     return owner, local_slot
 ```
 
+这里的逻辑 `slot` 从 1 开始，`owner` 从 0 开始；`//` 是向下取整的整数除法。先减 1 将逻辑编号转成从零开始，取余确定 owner，整除得到该 owner 上的行号，再加 1 为本地 slot 0 留出空状态。例如 `slot=6, cp_size=4` 时，`owner=1, local_slot=2`；逆映射为 `slot = cp_size * (local_slot - 1) + owner + 1`，可还原为 6。这里分片的是 checkpoint 的逻辑编号，与按 token 位置分片的 KV owner 分别计算。
+
 读取 prefix 时从实际 owner 取 state，写回也只由 owner 持久化。一个 checkpoint 同时包含 temporal state 与对应的短卷积历史，不保存逐 token 的 GDN KV。
 
 [![逻辑 state slot 与物理 owner 的映射及读写路径](/images/qwen35-context-parallel/state-slot-ownership.png)](/images/qwen35-context-parallel/state-slot-ownership.png)
@@ -282,5 +421,6 @@ overlap 是否成立取决于提交时机和依赖图。CPU 尚未提交完 eage
 
 ## 参考资料
 
+- [Gated Delta Networks 原论文：状态更新与分块计算](https://arxiv.org/abs/2412.06464)
 - [数学推导参考（知乎）](https://zhuanlan.zhihu.com/p/2007937984738129405)
 - [返回 LLM 专题](/llm/)

@@ -1,0 +1,40 @@
+/* Shared, fixed dark palette for the profile and all reading pages. */
+:root {
+  color-scheme: dark;
+  --canvas: #10151b;
+  --surface: #181f28;
+  --surface-raised: #212b36;
+  --text-primary: #e0e6ed;
+  --text-secondary: #b1becc;
+  --text-muted: #93a1b1;
+  --accent: #89c7ad;
+  --accent-hover: #b7e5d0;
+  --accent-soft: #203b32;
+  --border: #303c49;
+  --body-bg-color: var(--canvas);
+  --content-bg-color: var(--surface);
+  --card-bg-color: var(--surface);
+  --text-color: var(--text-primary);
+  --selection-bg: #345a4d;
+  --selection-color: #ffffff;
+  --blockquote-color: var(--text-secondary);
+  --link-color: var(--accent);
+  --link-hover-color: var(--accent-hover);
+  --brand-color: var(--text-primary);
+  --brand-hover-color: var(--accent-hover);
+  --table-row-odd-bg-color: var(--surface);
+  --table-row-hover-bg-color: var(--surface-raised);
+  --menu-item-bg-color: var(--surface-raised);
+  --theme-color: var(--canvas);
+  --btn-default-bg: var(--accent);
+  --btn-default-color: var(--canvas);
+  --btn-default-border-color: var(--accent);
+  --btn-default-hover-bg: var(--accent-hover);
+  --btn-default-hover-color: var(--canvas);
+  --btn-default-hover-border-color: var(--accent-hover);
+  --highlight-background: #111820;
+  --highlight-foreground: var(--text-primary);
+  --highlight-gutter-background: #111820;
+  --highlight-gutter-foreground: var(--text-muted);
+}
+::selection { background: var(--selection-bg); color: var(--selection-color); }

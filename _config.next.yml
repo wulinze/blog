@@ -1,6 +1,10 @@
 # NexT 通过 npm 安装，不直接修改 node_modules 中的主题文件。
 scheme: Pisces
+# palette.css sets a fixed dark theme, independent of OS preference.
 darkmode: false
+theme_color:
+  light: '#10151b'
+  dark: '#10151b'
 index_with_subtitle: true
 menu:
   home: / || fa fa-home
@@ -35,7 +39,7 @@ footer:
   since: 2023
   icon:
     name: fa fa-code
-    color: '#1c685b'
+    color: '#89c7ad'
     animated: false
   powered: true
 creative_commons:
@@ -58,7 +62,7 @@ toc:
   expand_all: true
 codeblock:
   theme:
-    light: github
+    light: github-dark
     dark: github-dark
   copy_button:
     enable: true

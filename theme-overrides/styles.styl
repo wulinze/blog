@@ -1,113 +1,17 @@
-// 温暖的纸张底色、墨绿强调色；所有字体和关键资源均不依赖外部 CDN。
-:root
-  --body-bg-color: #f7f6f2
-  --content-bg-color: #f7f6f2
-  --text-color: #343b38
-  --link-color: #244f43
-  --link-hover-color: #18735d
-  --btn-default-bg: #244f43
-  --btn-default-color: #fff
-
+// Layout and palette live in source/css; fonts use local system fallbacks.
 body
   font-family: "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", sans-serif
   line-height: 1.85
 
-.header
-  background: #f7f6f2
-  border-top: 4px solid #244f43
-
-.header-inner, .main-inner
-  max-width: 960px
-
-.site-title
-  font-family: Georgia, "Noto Serif CJK SC", serif
-  font-weight: 700
-  letter-spacing: -.04em
-  font-size: 28px
-
-.site-subtitle
-  color: #6e7871
-
-.menu .menu-item a
-  font-size: 14px
-
-.posts-expand .post-title
-  font-size: 25px
-  line-height: 1.6
-  text-align: left
-
-.posts-expand .post-meta
-  text-align: left
-  color: #6d776f
-  margin-top: 10px
-
-.post-block
-  margin-bottom: 48px
-
-.post-body
-  font-size: 16px
-
-.post-body h2
-  font-size: 24px
-  margin-top: 42px
-  padding-bottom: 8px
-  border-bottom: 1px solid #d8ddd5
-
-.post-body h3
-  font-size: 20px
-
-.post-body blockquote
-  background: #eeefe8
-  border-left: 3px solid #557967
-  padding: 12px 20px
-
 .post-body code, .post-body pre
   font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace
-
-.post-body pre, .post-body .highlight, .post-body .highlight pre
-  font-size: 16px
-  line-height: 1.65
-
-.post-body .highlight
-  border: 1px solid #e1e4dc
-  border-radius: 4px
-
-.post-body img
-  max-width: 100%
-  height: auto
 
 .post-button
   text-align: left
 
 .post-button .btn
   border: 0
-  border-bottom: 1px solid #9daea1
+  border-bottom: 1px solid var(--border)
   padding: 0 0 4px
   background: transparent
-  color: #244f43
-
-.post-eof
-  background: #d8ddd5
-  margin: 44px auto 0
-  width: 100%
-
-.katex-display
-  overflow-x: auto
-  overflow-y: hidden
-  padding: 8px 0
-
-.footer
-  color: #7a827b
-  font-size: 12px
-
-@media (max-width: 767px)
-  .header-inner
-    padding: 22px 20px
-  .main-inner
-    padding: 0 20px
-  .posts-expand .post-title
-    font-size: 22px
-  .post-body
-    font-size: 15px
-  .post-body h2
-    font-size: 21px
+  color: var(--accent)

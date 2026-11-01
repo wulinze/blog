@@ -1,4 +1,4 @@
-:root { color-scheme: light; --paper: #f7f6f2; --ink: #263e34; --muted: #727d75; --line: #dce0d8; --green: #245b48; }
+:root { --paper: var(--canvas); --ink: var(--text-primary); --muted: var(--text-muted); --line: var(--border); --green: var(--accent); }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", sans-serif; font-size: 15px; line-height: 1.8; }
 a { color: inherit; text-decoration: none; }
@@ -6,19 +6,19 @@ a:focus-visible { outline: 2px solid var(--green); outline-offset: 5px; border-r
 .home-shell { width: min(880px, calc(100% - 64px)); margin: auto; }
 .home-header { display: flex; justify-content: space-between; align-items: center; padding: 32px 0; border-bottom: 1px solid var(--line); }
 .wordmark { font: 700 28px Georgia, serif; letter-spacing: -.06em; }
-.wordmark span { color: #729384; }
+.wordmark span { color: var(--accent); }
 .home-header nav { display: flex; gap: 26px; font-size: 13px; }
-.home-header nav a:hover, .about-link:hover, .section-heading a:hover, .home-footer a:hover { color: #398461; }
+.home-header nav a:hover, .about-link:hover, .section-heading a:hover, .home-footer a:hover { color: var(--accent-hover); }
 .profile-intro { position: relative; padding: 66px 0 52px; }
 .profile-mark { position: absolute; top: 67px; right: 2px; }
 .eyebrow { margin: 0 0 18px; font-size: 10px; letter-spacing: .2em; color: var(--muted); }
 h1 { margin: 0 0 22px; font: 400 clamp(30px, 4vw, 42px)/1.4 "Noto Serif CJK SC", "Songti SC", SimSun, serif; letter-spacing: -.03em; }
 h1 span { font-family: Georgia, serif; font-weight: 500; }
-.profile-description { margin: 0; color: #627168; line-height: 2; max-width: 660px; }
+.profile-description { margin: 0; color: var(--text-secondary); line-height: 2; max-width: 660px; }
 .profile-links { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; margin-top: 28px; font-size: 13px; }
-.github-link { display: inline-flex; align-items: center; gap: 16px; padding: 9px 16px; background: var(--ink); color: #f8faf5; border-radius: 4px; }
-.github-link:hover { background: var(--green); }
-.github-link span:nth-child(1) { color: #c6d4ca; font: 11px Consolas, monospace; }
+.github-link { display: inline-flex; align-items: center; gap: 16px; padding: 9px 16px; background: var(--accent); color: var(--canvas); border-radius: 4px; }
+.github-link:hover { background: var(--accent-hover); }
+.github-link span:nth-child(1) { color: #203b32; font: 11px Consolas, monospace; }
 .about-link { color: var(--muted); }
 .topic-section { border-top: 1px solid var(--line); padding: 24px 0 32px; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -26,12 +26,12 @@ h2 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: .06em; }
 .section-heading a { font-size: 12px; color: var(--muted); }
 .topic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
 .topic-link { display: grid; grid-template-columns: 24px minmax(0,1fr) 16px; gap: 12px; align-items: center; padding: 19px 0; border-bottom: 1px solid var(--line); }
-.topic-number { align-self: start; padding-top: 4px; font: 10px/2 Consolas, monospace; color: #929c94; }
+.topic-number { align-self: start; padding-top: 4px; font: 10px/2 Consolas, monospace; color: var(--text-muted); }
 .topic-link strong { display: block; font-size: 15px; font-weight: 500; }
 .topic-link small { display: block; color: var(--muted); margin-top: 3px; font-size: 11px; }
-.topic-arrow { color: #81988a; font-size: 15px; transition: transform .15s; }
+.topic-arrow { color: var(--accent); font-size: 15px; transition: transform .15s; }
 .topic-link:hover .topic-arrow { transform: translate(2px,-2px); }
-.topic-link:hover strong { color: #398461; }
+.topic-link:hover strong { color: var(--accent-hover); }
 .home-footer { display: flex; gap: 20px; padding: 20px 0 30px; color: var(--muted); font-size: 11px; }
 .home-footer span { margin-right: auto; }
 @media (max-width: 600px) {
