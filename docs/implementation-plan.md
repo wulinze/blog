@@ -11,4 +11,13 @@
 - [x] Add source/build checks for missing metadata, duplicate URLs, missing local resources and preserved legacy routes. Run checks before and after migration.
 - [x] Add publish workflow and Chinese contributor documentation covering new posts, taxonomy, previews and credentials.
 - [x] Inspect desktop/mobile previews, search and sample posts; run `npm run check`, `npm run build`, generated-site validation and `git diff --check`.
-- [ ] Review changes, commit and push source; publish static files without overwriting repository history; verify the live website. Report any authentication blocker accurately.
+- [x] Review changes, commit and push source; publish static files without overwriting repository history; verify the live website. Report any authentication blocker accurately.
+
+## Verified delivery — 2026-11-01
+
+- Source implementation: `0cfacbe` on `wulinze/blog:master`.
+- Published site: `802ab6c` on `wulinze/wulinze.github.io:master`, preserving the prior commit history.
+- Source Actions run `41294460387` and Pages run `41294492910` both succeeded.
+- Verified 71 articles, 195 HTML pages, all 70 historical article routes, two Node tests and three browser tests.
+- Live homepage, categories, about, search XML, CSS and two historical article URLs returned HTTP 200 and matched the local files byte-for-byte.
+- Initial delivery used the existing local SSH key over port 443. Future Actions publishing is enabled when a dedicated `BLOG_DEPLOY_KEY` secret is configured; local `npm run deploy` is ready to use.
