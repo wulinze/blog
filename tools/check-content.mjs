@@ -7,6 +7,8 @@ const categories = new Set(['LeetCode 刷题', '系统知识', 'LLM 推理', '�
 const files = fs.readdirSync('source/_posts').filter(name => name.endsWith('.md'));
 const urls = new Set();
 const errors = [];
+const removed = JSON.parse(fs.readFileSync('docs/removed-posts.json', 'utf8'));
+const removedUrls = new Set(removed.map(post => post.permalink));
 for (const name of files) {
   try {
     const text = fs.readFileSync(path.join('source/_posts', name), 'utf8');
@@ -27,10 +29,13 @@ for (const name of files) {
     }
   } catch (error) { errors.push(`${name}: ${error.message}`); }
 }
-assert(files.length >= 71, `Expected at least the 71 original articles, found ${files.length}`);
+assert(files.length >= 71 - removed.length, `Unexpected article loss: ${files.length} files after ${removed.length} documented removals`);
+for (const post of removed) {
+  if (files.includes(post.file) || urls.has(post.permalink)) errors.push(`Removed draft is published again: ${post.file}`);
+}
 if (fs.existsSync('docs/legacy-routes.json')) {
   for (const url of JSON.parse(fs.readFileSync('docs/legacy-routes.json', 'utf8'))) {
-    if (!urls.has(url)) errors.push(`Legacy article URL lost: ${url}`);
+    if (!removedUrls.has(url) && !urls.has(url)) errors.push(`Legacy article URL lost: ${url}`);
   }
 }
 if (errors.length) {

@@ -1,0 +1,56 @@
+[
+  {
+    "file": "Pareto-Front.md",
+    "title": "Pareto Front：帕累托前沿（待补充）",
+    "permalink": "/2023/12/22/Pareto-Front/",
+    "reason": "只有标题和待补充说明，没有正文。"
+  },
+  {
+    "file": "criu编译.md",
+    "title": "CRIU 编译记录（待补充）",
+    "permalink": "/2024/12/06/criu编译/",
+    "reason": "只有标题和待补充说明，没有编译步骤。"
+  },
+  {
+    "file": "968.监控二叉树.md",
+    "title": "监控二叉树",
+    "permalink": "/2025/10/28/968.监控二叉树/",
+    "reason": "只有题目和图片，题目解析为空，没有解法或代码。"
+  },
+  {
+    "file": "Hottub.md",
+    "title": "Hottub 编译与启动计时笔记",
+    "permalink": "/2024/07/24/Hottub/",
+    "reason": "只有零散编译修改和计时变量，结尾为空列表项，没有完整操作流程。"
+  },
+  {
+    "file": "CRaC-Spring-and-Sprint-Boot-Support.md",
+    "title": "CRaC：Spring 与 Spring Boot 支持记录",
+    "permalink": "/2024/07/22/CRaC-Spring-and-Sprint-Boot-Support/",
+    "reason": "仅列提交哈希，没有提交链接、背景说明或支持机制分析。"
+  },
+  {
+    "file": "CRaC源码分析.md",
+    "title": "CRaC 源码分析：恢复参数与 CRIU 调用",
+    "permalink": "/2024/11/05/CRaC源码分析/",
+    "reason": "checkpoint 与 restore 流程章节为空，源码分析未完成。"
+  },
+  {
+    "file": "hotspot-内存布局和源码分析.md",
+    "title": "HotSpot 内存布局与源码分析",
+    "permalink": "/2024/01/19/hotspot-内存布局和源码分析/",
+    "reason": "ResourceObj 章节未展开，Arena 等内容仍为提纲。"
+  },
+  {
+    "file": "cds.md",
+    "title": "CDS 与 AppCDS：类数据共享笔记",
+    "permalink": "/2024/08/13/cds/",
+    "reason": "static archive 与 dynamic archive 段落未展开，末尾枚举缺少对应解释。"
+  },
+  {
+    "file": "leyden.md",
+    "title": "Leyden：JVM 启动与预热优化笔记",
+    "permalink": "/2024/08/12/leyden/",
+    "reason": "参数介绍为空，create_vm 分析只写了入口，正文保留未整理的摘录与空列表项。"
+  }
+]

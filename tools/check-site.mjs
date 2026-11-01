@@ -35,12 +35,18 @@ for (const file of files.filter(file => file.endsWith('.html'))) {
 for (const file of ['index.html', 'blog/index.html', 'about/index.html', 'categories/index.html', 'tags/index.html', 'archives/index.html', 'search.xml', 'atom.xml', 'sitemap.xml', '.nojekyll']) {
   if (!fs.existsSync(path.join(root, file))) errors.add(`Missing output: ${file}`);
 }
-for (const url of JSON.parse(fs.readFileSync('docs/legacy-routes.json', 'utf8'))) {
+const removed = JSON.parse(fs.readFileSync('docs/removed-posts.json', 'utf8'));
+const removedUrls = new Set(removed.map(post => post.permalink));
+const legacyUrls = JSON.parse(fs.readFileSync('docs/legacy-routes.json', 'utf8')).filter(url => !removedUrls.has(url));
+for (const url of legacyUrls) {
   const file = path.join(root, url, 'index.html');
   if (!fs.existsSync(file) || fs.statSync(file).size < 1000) errors.add(`Legacy URL missing/empty: ${url}`);
 }
-assert(pages > 71, 'Expected article and navigation pages');
+for (const post of removed) {
+  if (fs.existsSync(path.join(root, post.permalink, 'index.html'))) errors.add(`Removed draft remains in build: ${post.file}`);
+}
+assert(pages > legacyUrls.length, 'Expected article and navigation pages');
 if (errors.size) {
   console.error([...errors].join('\n'));
   process.exitCode = 1;
-} else console.log(`Site OK: ${pages} HTML pages; local links, assets and 70 legacy article routes verified.`);
+} else console.log(`Site OK: ${pages} HTML pages; local links, assets, ${legacyUrls.length} retained legacy routes and ${removed.length} removals verified.`);

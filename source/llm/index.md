@@ -10,7 +10,7 @@ comments: false
 
 整理模型与请求的并行组织方式，记录通信、调度与计算的关系，以及不同配置下的实践观察。
 
-- [Qwen3.5 Context Parallel：布局、状态与缓存的实现](/llm/qwen35-context-parallel/)：梳理 GDN、Full Attention 与 MoE 的布局衔接，以及分片缓存和 PD 传输。
+- [Qwen3.5 Context Parallel：系统设计与计算流程](/llm/qwen35-context-parallel/)：梳理 GDN、Full Attention 与 MoE 的布局衔接，以及分片缓存和 PD 传输。
 
 ## Cache 池化
 

@@ -63,4 +63,4 @@ npm run deploy        # 校验、构建并通过 SSH 发布
 
 ## 迁移说明
 
-71 篇原文章均保留；70 条已有文章地址固定在 front matter 中。部分原文尚未完成，两篇空笔记和两张缺失图片均保留明确说明。详见 [内容迁移记录](docs/content-migration.md)。
+原始迁移包含 71 篇文章。内容清理后删除 9 篇未完成笔记，并新增 Qwen3.5 Context Parallel 系统设计文章，当前保留 63 篇。保留文章的历史地址不变；删除条目及原因见 [清理清单](docs/removed-posts.json)，迁移过程见 [内容迁移记录](docs/content-migration.md)。未完成的新内容应放在 `source/_drafts/`，完成后再发布。

@@ -12,8 +12,8 @@ hexo.extend.generator.register('navigation-redirects', locals => {
   for (const [old, current] of Object.entries({ 'jvm-java': 'systems', cpp: 'systems', algorithms: 'leetcode', jvm: 'systems' })) {
     add(`categories/${old}/`, `categories/${current}/`);
   }
-  // Previous algorithm category had six pages; the merged systems category has two.
+  // Keep historical pagination links valid after unfinished posts are removed.
   for (let n = 2; n <= 6; n++) add(`categories/algorithms/page/${n}/`, `categories/leetcode/page/${n}/`);
-  add('categories/jvm-java/page/2/', 'categories/systems/page/2/');
+  add('categories/jvm-java/page/2/', 'categories/systems/');
   return redirects;
 });
