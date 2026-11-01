@@ -1,7 +1,7 @@
 ---
 title: "C++ const_cast 与成员变量修改"
 date: "2024-01-26 09:49:08"
-categories: ["C++"]
+categories: ["系统知识"]
 tags: ["C++", "类型转换"]
 description: "记录使用 const_cast 转换 this 指针并修改成员变量的写法。"
 permalink: "/2024/01/26/cpp-有趣写法/"

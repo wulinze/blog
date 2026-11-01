@@ -1,7 +1,7 @@
 ---
 title: "CRaC：JVM 检查点与恢复"
 date: "2024-07-05 09:10:31"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "CRaC", "CRIU", "启动优化"]
 description: "记录 CRaC 与 CRIU 的关系、检查点流程、恢复机制及文件描述符的处理。"
 permalink: "/2024/07/05/CRaC/"

@@ -32,7 +32,7 @@ for (const file of files.filter(file => file.endsWith('.html'))) {
     if (!generated.has(target) && !generated.has(path.join(target, 'index.html'))) errors.add(`${relative}: missing ${url.pathname}`);
   }
 }
-for (const file of ['index.html', 'about/index.html', 'categories/index.html', 'tags/index.html', 'archives/index.html', 'search.xml', 'atom.xml', 'sitemap.xml', '.nojekyll']) {
+for (const file of ['index.html', 'blog/index.html', 'about/index.html', 'categories/index.html', 'tags/index.html', 'archives/index.html', 'search.xml', 'atom.xml', 'sitemap.xml', '.nojekyll']) {
   if (!fs.existsSync(path.join(root, file))) errors.add(`Missing output: ${file}`);
 }
 for (const url of JSON.parse(fs.readFileSync('docs/legacy-routes.json', 'utf8'))) {

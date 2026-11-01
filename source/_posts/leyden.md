@@ -1,7 +1,7 @@
 ---
 title: "Leyden：JVM 启动与预热优化笔记"
 date: "2024-08-12 07:52:00"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "Leyden", "CDS", "启动优化"]
 description: "记录 Leyden 早期版本基于 CDS 的类预加载、缓存和方法分析数据复用机制。"
 permalink: "/2024/08/12/leyden/"

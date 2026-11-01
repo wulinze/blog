@@ -1,7 +1,7 @@
 ---
 title: "打家劫舍 III"
 date: "2025-10-28 00:00:00"
-categories: ["算法与数据结构"]
+categories: ["LeetCode 刷题"]
 tags: ["C++", "二叉树", "动态规划"]
 description: "从叶子节点向上转移，分别记录选择与不选择当前节点的最大收益。"
 permalink: "/2025/10/28/打家劫舍III/"

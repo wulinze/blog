@@ -1,7 +1,7 @@
 ---
 title: "CRaC：Spring 与 Spring Boot 支持记录"
 date: "2024-07-22 13:18:56"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "CRaC", "Spring"]
 description: "保留 Spring 与 Spring Boot 支持 CRaC 的相关提交编号，供源码阅读时追踪。"
 permalink: "/2024/07/22/CRaC-Spring-and-Sprint-Boot-Support/"

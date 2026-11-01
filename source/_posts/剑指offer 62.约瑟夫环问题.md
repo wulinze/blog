@@ -1,7 +1,7 @@
 ---
 title: "约瑟夫环问题"
 date: "2025-10-28 00:00:00"
-categories: ["算法与数据结构"]
+categories: ["LeetCode 刷题"]
 tags: ["C++", "数学", "递推"]
 description: "由删除一个元素后的编号关系推导约瑟夫环递推式，并给出迭代实现。"
 permalink: "/2025/10/28/剑指offer 62.约瑟夫环问题/"

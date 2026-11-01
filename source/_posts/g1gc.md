@@ -1,7 +1,7 @@
 ---
 title: "G1 GC：内存模型与回收参数"
 date: "2023-12-20 03:19:27"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "垃圾回收", "G1"]
 description: "记录 G1 GC 的内存模型、对象晋升、Survivor 调整及相关回收参数。"
 permalink: "/2023/12/20/g1gc/"

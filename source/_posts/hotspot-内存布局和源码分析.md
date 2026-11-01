@@ -1,7 +1,7 @@
 ---
 title: "HotSpot 内存布局与源码分析"
 date: "2024-01-19 08:50:03"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "HotSpot", "内存管理", "源码阅读"]
 description: "基于 JDK 17 源码整理 HotSpot 对象类型、Arena 与 Metaspace 的内存分配。"
 permalink: "/2024/01/19/hotspot-内存布局和源码分析/"

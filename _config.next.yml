@@ -4,6 +4,7 @@ darkmode: false
 index_with_subtitle: true
 menu:
   home: / || fa fa-home
+  文章: /blog/ || fa fa-book
   categories: /categories/ || fa fa-layer-group
   tags: /tags/ || fa fa-tags
   archives: /archives/ || fa fa-archive
@@ -90,5 +91,4 @@ vendors:
   local_search: /assets/local-search/search.js
 custom_file_path:
   head: theme-overrides/head.njk
-  header: theme-overrides/header.njk
   style: theme-overrides/styles.styl

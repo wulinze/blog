@@ -1,7 +1,7 @@
 ---
 title: "包含min函数的栈"
 date: "2025-10-28 00:00:00"
-categories: ["算法与数据结构"]
+categories: ["LeetCode 刷题"]
 tags: ["C++", "栈", "数据结构"]
 description: "用同步辅助栈维护最小值，使入栈、出栈与查询最小值保持常数时间。"
 permalink: "/2025/10/28/包含min函数的栈/"

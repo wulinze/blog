@@ -1,7 +1,7 @@
 ---
 title: "C++ 并发与缓存一致性"
 date: "2024-01-26 12:47:49"
-categories: ["C++"]
+categories: ["系统知识"]
 tags: ["C++", "并发", "内存模型"]
 description: "整理缓存层级、MESI 协议消息，以及 C++ 并发中的顺序与同步关系。"
 permalink: "/2024/01/26/cpp-并发一致性/"

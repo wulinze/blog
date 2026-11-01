@@ -1,7 +1,7 @@
 # 站点基础信息；主题外观在 _config.next.yml 中维护。
 title: Wu's Blog
 subtitle: 技术分享 · 思考与实践
-description: 记录 JVM、C++、算法与系统工程中的问题、探索和实践。
+description: wulinze 的个人主页，分享 LeetCode 刷题、系统知识与 LLM 推理的学习和实践。
 author: wulinze
 language: zh-CN
 timezone: Asia/Shanghai
@@ -35,15 +35,14 @@ highlight:
   wrap: true
   hljs: false
 index_generator:
-  path: ''
+  path: blog
   per_page: 10
   order_by: -date
 default_category: 技术笔记
 category_map:
-  JVM 与 Java: jvm-java
-  C++: cpp
-  算法与数据结构: algorithms
-  系统工程: systems
+  LeetCode 刷题: leetcode
+  系统知识: systems
+  LLM 推理: llm-inference
   数学与计算: mathematics
 tag_map:
   C++: cpp

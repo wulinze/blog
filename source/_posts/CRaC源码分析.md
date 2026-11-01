@@ -1,7 +1,7 @@
 ---
 title: "CRaC 源码分析：恢复参数与 CRIU 调用"
 date: "2024-11-05 03:23:13"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "CRaC", "源码阅读"]
 description: "基于 CRaC 17+1 记录恢复阶段的参数更新机制与 CRIU 调用逻辑。"
 permalink: "/2024/11/05/CRaC源码分析/"

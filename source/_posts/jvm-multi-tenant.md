@@ -1,7 +1,7 @@
 ---
 title: "JVM 多租户与 Cgroup 资源隔离"
 date: "2024-04-07 06:15:46"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "多租户", "Cgroup"]
 description: "整理 JVM 多租户的环境隔离、资源限制与 Cgroup 子系统相关笔记。"
 permalink: "/2024/04/07/jvm-multi-tenant/"

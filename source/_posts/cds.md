@@ -1,7 +1,7 @@
 ---
 title: "CDS 与 AppCDS：类数据共享笔记"
 date: "2024-08-13 09:52:05"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "CDS", "启动优化"]
 description: "记录 CDS 与 AppCDS 的复用思路、归档方式和相关启动参数。"
 permalink: "/2024/08/13/cds/"

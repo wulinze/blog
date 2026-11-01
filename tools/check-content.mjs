@@ -3,7 +3,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 
-const categories = new Set(['JVM 与 Java', 'C++', '算法与数据结构', '系统工程', '数学与计算']);
+const categories = new Set(['LeetCode 刷题', '系统知识', 'LLM 推理', '数学与计算']);
 const files = fs.readdirSync('source/_posts').filter(name => name.endsWith('.md'));
 const urls = new Set();
 const errors = [];

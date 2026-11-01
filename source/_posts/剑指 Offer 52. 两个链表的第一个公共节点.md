@@ -1,7 +1,7 @@
 ---
 title: "两个链表的第一个公共节点"
 date: "2025-10-28 00:00:00"
-categories: ["算法与数据结构"]
+categories: ["LeetCode 刷题"]
 tags: ["C++", "链表", "双指针"]
 description: "两个指针依次遍历两条链表，通过等长路径寻找第一个公共节点。"
 permalink: "/2025/10/28/剑指 Offer 52. 两个链表的第一个公共节点/"

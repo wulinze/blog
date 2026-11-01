@@ -1,7 +1,7 @@
 ---
 title: "HotSpot 线程模型与执行流程"
 date: "2024-07-16 08:50:11"
-categories: ["JVM 与 Java"]
+categories: ["系统知识"]
 tags: ["JVM", "HotSpot", "线程"]
 description: "记录 Java Thread 与 pthread 的关联、HotSpot 线程层次和后台线程职责。"
 permalink: "/2024/07/16/hotspot-thread/"
