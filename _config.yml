@@ -55,7 +55,8 @@ updated_option: date
 meta_generator: true
 include:
   - .nojekyll
-exclude: []
+exclude:
+  - 'llm/qwen3.5 context parallel实现'
 ignore: []
 markdown:
   preset: default

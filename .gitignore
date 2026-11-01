@@ -9,3 +9,5 @@ _multiconfig.yml
 *.sh
 playwright-report/
 test-results/
+# Local source document; publish only the edited article in source/_posts/.
+/source/llm/qwen3.5 context parallel实现
