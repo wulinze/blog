@@ -35,7 +35,7 @@ npx hexo new post "文章标题"
 
 ## 站点与个人入口
 
-`_config.yml` 管理站点名称、地址、分类；`tools/publish.mjs` 管理发布目标；`_config.next.yml` 管理 NexT 菜单、搜索和外观；`theme-overrides/` 保存文章页样式。首页为 `source/index.html`，样式为 `source/css/home.css`，只展示个人介绍、GitHub 和紧凑的分类入口；完整文章列表位于 `/blog/`。LLM 栏目入口位于 `source/llm/index.md`，目前保留待整理说明；公开笔记后可在此汇总文章或链接到 `/categories/llm-inference/`。个人简介位于 `source/about/index.md`，后续可在这里添加履历和项目链接。主题通过 npm 安装，无需初始化 Git 子模块。`scripts/markdown.js` 使用 Markdown-it 的公开接口和 KaTeX 渲染正文，`scripts/local-assets.js` 随站点发布搜索、图标和公式资源。
+`_config.yml` 管理站点名称、地址、分类；`tools/publish.mjs` 管理发布目标；`_config.next.yml` 管理 NexT 菜单、搜索和外观；`theme-overrides/` 保存文章页样式。首页为 `source/index.html`，样式为 `source/css/home.css`，只展示个人介绍、GitHub 和紧凑的分类入口；完整文章列表位于 `/blog/`。LLM 栏目入口位于 `source/llm/index.md`，按并行方式、Cache 池化、算子学习组织；公开笔记后在对应段落补上文章链接。个人简介位于 `source/about/index.md`，后续可在这里添加履历和项目链接。主题通过 npm 安装，无需初始化 Git 子模块。`scripts/markdown.js` 使用 Markdown-it 的公开接口和 KaTeX 渲染正文，`scripts/local-assets.js` 随站点发布搜索、图标和公式资源。
 
 ## 检查与发布
 

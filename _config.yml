@@ -1,7 +1,7 @@
 # 站点基础信息；主题外观在 _config.next.yml 中维护。
 title: Wu's Blog
 subtitle: 技术分享 · 思考与实践
-description: wulinze 的个人主页，分享 LeetCode 刷题、系统知识与 LLM 推理的学习和实践。
+description: wulinze 的个人主页，关注 LLM 并行方式、Cache 池化与算子学习，分享系统知识和 LeetCode 刷题记录。
 author: wulinze
 language: zh-CN
 timezone: Asia/Shanghai
