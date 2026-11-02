@@ -2,7 +2,7 @@
 title: CUDA 性能学习（二）：从 SM 调度、warp stall 到访存优化与 TMA 流水线
 description: 先分清性能术语与 SM 内部管线，再用手绘图、交互模型和完整 CUDA demo 理解 occupancy、延迟隐藏、合并访存、tiling、向量化及 TMA。
 categories:
-  - 系统知识
+  - LLM 推理
 tags:
   - CUDA
   - 基础学习

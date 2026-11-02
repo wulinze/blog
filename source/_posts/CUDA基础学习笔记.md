@@ -1,8 +1,8 @@
 ---
-title: CUDA 基础学习笔记：从一次向量加法理解执行与内存
+title: CUDA 基础学习（一）：从一次向量加法理解执行与内存
 description: 用十张 Excalidraw 手绘图、八个交互实验与 CUDA demo，对应 GPU 物理结构、线程组织和多层访存路径。
 categories:
-  - 系统知识
+  - LLM 推理
 tags:
   - CUDA
   - 基础学习

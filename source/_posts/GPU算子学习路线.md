@@ -1,10 +1,10 @@
 ---
-title: GPU 算子学习路线：从性能模型到 Attention 与低精度计算
-description: 根据 leetcuda-20261029 的内容按知识依赖重组，列出各主题的前置知识、实验、Triton 与 TileLang 练习和验收要求。
+title: CUDA 算子学习目录：按章阅读、逐篇实践
+description: 按照 leetcuda-20261029 的章节顺序，一章对应一篇博客，接续既有编号，汇总交互演示、代码 demo 和 Triton／TileLang 练习。
 permalink: systems/gpu-learning-path/
 date: 2026-11-02 15:20:00
 categories:
-  - 系统知识
+  - LLM 推理
 tags:
   - CUDA
   - 学习路线
@@ -14,19 +14,23 @@ tags:
 
 ## 从这里开始
 
-这条路线依据 `leetcuda-20261029.pdf` 的目录与主题覆盖范围梳理；完整教程再逐主题回读原文、核对实现与官方资料。**按“学会什么、怎样做出来、如何验证”组织，不沿用原书章节编号。** 架构专用实现安排在通用原理之后；CuTe 的布局思想会通过 Python 小模型以及 Triton／TileLang 对照练习来理解，不把三者的 API 当成一一对应关系。
+本系列归入 **LLM 推理 → 算子学习**，依据 `leetcuda-20261029.pdf` 持续创作。**原文每一章对应一篇独立博客，按原文章节顺序继续，编号接着已有文章往下排。** 下方的大组只是导航分组，不会合并成一篇博客。
+
+编号关系固定为：已有 CUDA 基础是（一），性能分析是（二）；原文第二章的 GPU 架构与 Roofline 为（三），原文第三章的归约与点积为（四），依此继续到（四十一）。博客编号与原文编号分开记录，正文保留原文主题与 PDF 阅读器页码便于核对。
 
 当前可直接学习：
 
-- [CUDA 基础：GPU 结构、执行与内存](/systems/cuda-basics/)——先建立物理结构与编程模型。
-- [SM 调度、warp stall、访存优化与流水线](/systems/cuda-overlap/)——理解等待、驻留、tiling、overlap，并学会采集证据。
-- [Roofline：估算性能上限，再用 Triton 和 TileLang 验证](/systems/gpu-roofline/)——接续当前学习，附图、交互计算器、CPU demo、两套 GPU 基线和练习入口。
+- [（一）CUDA 基础：GPU 结构、执行与内存](/systems/cuda-basics/)——先建立物理结构与编程模型。
+- [（二）SM 调度、warp stall、访存优化与流水线](/systems/cuda-overlap/)——理解等待、驻留、tiling、overlap，并学会采集证据。
+- [（三）Roofline：估算性能上限，再用 Triton 和 TileLang 验证](/systems/gpu-roofline/)——接续当前学习，附图、交互计算器、CPU demo、两套 GPU 基线和练习入口。
+
+- [（四）归约与点积：从 warp 到全局结果](/llm/cuda-reduction/)——逐轮交互、CUDA/Triton/TileLang 完整 demo、分层归约与原子对照。
 
 **下面覆盖后续全部学习主题，但“学习任务已梳理”与“完整教程已发布”分开标注。** 标为“待展开”的条目已有学习目标和练习设计，尚没有配套成品；完成讲解、流程图、demo、练习与检查后，逐篇替换成文章链接。不会将空模板列为已完成教程。
 
 <figure class="cuda-diagram">
 <a href="/images/gpu-roofline/learning-route.svg" target="_blank" rel="noopener"><img src="/images/gpu-roofline/learning-route.svg" alt="机器测量到基础并行，再到矩阵计算、注意力布局和低精度的知识依赖路线" loading="lazy"></a>
-<figcaption>从上到下是推荐前置关系，不要求按原书顺序背诵。<a href="/images/gpu-roofline/learning-route.excalidraw" download>下载可编辑原图</a></figcaption>
+<figcaption>这张图概括知识依赖；实际文章保持下方的连续编号与原文章节顺序。<a href="/images/gpu-roofline/learning-route.excalidraw" download>下载可编辑原图</a></figcaption>
 </figure>
 
 路线图把基础能力汇合到 Attention，再由布局、调度和量化各自深化。图中的箭头表示理解上的依赖：例如不了解 online 状态就直接改 FlashAttention 流水，数值问题与同步问题会混在一起；先做稳定 Softmax 和 LSE merge，可以把两者分开验证。
@@ -58,7 +62,7 @@ tags:
 
 先读上方两篇已发布基础资料；会用 Python 和张量 shape。
 
-### [GPU 架构与 Roofline：先预测，再测量](/systems/gpu-roofline/)
+### [（三）GPU 架构与 Roofline：先预测，再测量](/systems/gpu-roofline/)
 
 **状态：已发布，可开始学习。** 读懂逻辑流量、分层流量和两种时间下界。
 
@@ -72,9 +76,9 @@ tags:
 
 前置：线程/warp、掩码与同步。归约是 Softmax 和 Norm 的公共前置，LSE 合并在 Softmax 之后。
 
-### 归约与点积：从一组数到一个结果
+### [（四）归约与点积：从一组数到一个结果](/llm/cuda-reduction/)
 
-**状态：待展开；学习任务已梳理。** warp 内交换、block 两级归约、跨 block 合并与浮点误差。
+**状态：已发布，可开始学习。** warp 内交换、block 两级归约、跨 block 合并与浮点误差。
 
 - **交互演示**：点击下一轮展开归约树，显示每个 lane 的值与跨 warp 合并。
 - **完整代码 demo**：两阶段 sum/dot：输出 partial 和最终值，对照 FP64，并覆盖尾块。
@@ -82,7 +86,7 @@ tags:
 - **TileLang 练习**：fragment 归约；多 block partial 与最终合并。
 - **通过条件**：比较 FP64 参考，测非整除长度；解释为何不能在普通 grid 内随意全局同步。
 
-### 访问粒度与原子冲突：向量化和直方图
+### （五）访问粒度与原子冲突：向量化和直方图
 
 **状态：待展开；学习任务已梳理。** 区分合并访存、单线程宽访存和原子串行化。
 
@@ -92,7 +96,7 @@ tags:
 - **TileLang 练习**：宽 copy；每 block 局部 histogram 后合并。
 - **通过条件**：同一有效数据量比较请求；均匀与热点分布均正确，直方图总数守恒。
 
-### 稳定 Softmax：从整行到在线状态
+### （六）稳定 Softmax：从整行到在线状态
 
 **状态：待展开；学习任务已梳理。** 减最大值，推导分块 max 与 sum 的重缩放。
 
@@ -102,7 +106,7 @@ tags:
 - **TileLang 练习**：reduce_max / reduce_sum；online 两状态。
 - **通过条件**：极大输入不溢出，行和接近 1；空行与全 mask 行有明确约定。
 
-### LSE 与注意力状态合并
+### （七）LSE 与注意力状态合并
 
 **状态：待展开；学习任务已梳理。** 把归一化输出与 log-sum-exp 组合成可合并状态。
 
@@ -112,7 +116,7 @@ tags:
 - **TileLang 练习**：并行分段 merge；避免额外中间张量。
 - **通过条件**：分段合并对齐完整参考，覆盖空段与两边都空，明确对数底。
 
-### RMSNorm 与 LayerNorm：统计量和广播
+### （八）RMSNorm 与 LayerNorm：统计量和广播
 
 **状态：待展开；学习任务已梳理。** 理解平方均值、中心化方差、eps 与稳定计算。
 
@@ -122,7 +126,7 @@ tags:
 - **TileLang 练习**：fragment 归约；比较两遍方差与 Welford。
 - **通过条件**：小方差、大偏置、非整除 hidden size；匹配 eps 和方差定义。
 
-### RoPE 与转置：数据重排为何影响性能
+### （九）RoPE 与转置：数据重排为何影响性能
 
 **状态：待展开；学习任务已梳理。** 旋转配对、相对位置性质、global 合并与 shared bank。
 
@@ -136,7 +140,7 @@ tags:
 
 前置：归约、内存访问与 Roofline；先 GEMV/GEMM，再看 Tensor Core、流水和架构专用协议。
 
-### GEMV：如何把一行交给 warp
+### （十）GEMV：如何把一行交给 warp
 
 **状态：待展开；学习任务已梳理。** 长短 K 的并行分工，矩阵流量与向量复用。
 
@@ -146,7 +150,7 @@ tags:
 - **TileLang 练习**：线程划分变化；短 K 多行打包。
 - **通过条件**：M/K 尾部正确，区分任务太少与 DRAM 吞吐受限。
 
-### GEMM：block tile 与寄存器 tile
+### （十一）GEMM：block tile 与寄存器 tile
 
 **状态：待展开；学习任务已梳理。** 从 2MNK 推导复用收益，区分 block / thread tile。
 
@@ -156,7 +160,7 @@ tags:
 - **TileLang 练习**：shared tile + fragment accumulator + T.gemm。
 - **通过条件**：非方阵和尾块正确；解释 BK 与输出 tile 改变的不同资源。
 
-### 精度与异步搬运：TF32 和双缓冲
+### （十二）精度与异步搬运：TF32 和双缓冲
 
 **状态：待展开；学习任务已梳理。** 区分精度改变、Tensor Core 通路与 cp.async 时序。
 
@@ -166,7 +170,7 @@ tags:
 - **TileLang 练习**：num_stages 对照；检查生成的 async 指令。
 - **通过条件**：必须先报告精度，再谈速度；只看到异步指令不算 overlap 已被证明。
 
-### MMA 与 fragment：理解协作计算的数据归属
+### （十三）MMA 与 fragment：理解协作计算的数据归属
 
 **状态：待展开；学习任务已梳理。** lane / fragment / ldmatrix 与多级流水。
 
@@ -176,7 +180,7 @@ tags:
 - **TileLang 练习**：用布局可视化追踪 A/B/C 的 fragment。
 - **通过条件**：独立核对每个输出坐标与覆盖；不能把高层 tile 当每线程存储量。
 
-### 布局与调度：三种不同的 swizzle
+### （十四）布局与调度：三种不同的 swizzle
 
 **状态：待展开；学习任务已梳理。** shared 地址 XOR、寄存器双缓冲、CTA 顺序互不等价。
 
@@ -186,7 +190,7 @@ tags:
 - **TileLang 练习**：shared swizzle 与分块调度分别做 A/B。
 - **通过条件**：验证映射一一对应，再用实际访问组验证 bank；不混淆 L2 与 shared。
 
-### TMA 与 WGMMA：Hopper 的完成协议
+### （十五）TMA 与 WGMMA：Hopper 的完成协议
 
 **状态：待展开；学习任务已梳理。** descriptor、transaction barrier、异步 MMA 与 slot 释放。
 
@@ -196,7 +200,7 @@ tags:
 - **TileLang 练习**：TMA 搬运与 gemm 流水；核对生成屏障。
 - **通过条件**：列出 arrive、expected bytes、完成和复用事件；目标硬件不支持时仅做协议模拟。
 
-### SM120 的生产消费流水
+### （十六）SM120 的生产消费流水
 
 **状态：待展开；学习任务已梳理。** 架构能力边界、mma.sync 与资源分配协议。
 
@@ -210,7 +214,7 @@ tags:
 
 前置：Softmax、LSE merge、GEMM 和流水；先证明数学状态，再改变线程角色。
 
-### FlashAttention：为什么可以不写出分数矩阵
+### （十七）FlashAttention：为什么可以不写出分数矩阵
 
 **状态：待展开；学习任务已梳理。** QK、online softmax、PV 的状态不变量与 IO。
 
@@ -220,7 +224,7 @@ tags:
 - **TileLang 练习**：分块 QK / PV；维护 m、l、O。
 - **通过条件**：与完整 attention 对齐，覆盖 causal、尾块；解释旧输出为何也必须缩放。
 
-### Split-Q：让每组线程拥有自己的查询行
+### （十八）Split-Q：让每组线程拥有自己的查询行
 
 **状态：待展开；学习任务已梳理。** 减少跨 warp 归约；S/P 布局如何交给下一次 MMA。
 
@@ -230,7 +234,7 @@ tags:
 - **TileLang 练习**：QK fragment 到 PV fragment 的交接。
 - **通过条件**：每行状态有明确 owner；区分减少同步与增加重复加载。
 
-### 注意力的双流水：K、V 与角色分工
+### （十九）注意力的双流水：K、V 与角色分工
 
 **状态：待展开；学习任务已梳理。** 不同数据的就绪时机，stage 占用和 full/empty 协议。
 
@@ -240,7 +244,7 @@ tags:
 - **TileLang 练习**：分别调 K/V stages，追踪 consumer 释放。
 - **通过条件**：短序列、单 tile、尾 tile 先通过；生产/消费不平衡需要时间线证据。
 
-### 多 consumer 与分段合并
+### （二十）多 consumer 与分段合并
 
 **状态：待展开；学习任务已梳理。** 区分书中双 consumer 方案与泛称 FA3；合并局部状态。
 
@@ -250,7 +254,7 @@ tags:
 - **TileLang 练习**：多 consumer 结构或分 kernel 等价基线。
 - **通过条件**：单段退化、奇数 KV tile、空段均正确；合并成本计入总时间。
 
-### 大 head_dim：Split-D 的两次分块
+### （二十一）大 head_dim：Split-D 的两次分块
 
 **状态：待展开；学习任务已梳理。** QK 的 D 归约与 PV 的输出 D 分块不同。
 
@@ -264,7 +268,7 @@ tags:
 
 前置：地址/stride、tile、MMA 基础；先用坐标枚举验证映射，再组合 Copy 与 MMA。
 
-### Layout：坐标、地址与可逆映射
+### （二十二）Layout：坐标、地址与可逆映射
 
 **状态：待展开；学习任务已梳理。** 从 shape/stride 到 composition、divide 与 product。
 
@@ -274,7 +278,7 @@ tags:
 - **TileLang 练习**：可视化 layout；核对 element 到 thread/value 映射。
 - **通过条件**：Python 小模型穷举地址；分清逻辑 reshape 与真实搬运。
 
-### Copy 的归属：谁搬什么，搬到哪里
+### （二十三）Copy 的归属：谁搬什么，搬到哪里
 
 **状态：待展开；学习任务已梳理。** Tensor 视图与 TiledCopy 的 thread/value 划分。
 
@@ -284,7 +288,7 @@ tags:
 - **TileLang 练习**：T.copy 的 global/shared/fragment 路径。
 - **通过条件**：覆盖无遗漏、无非法重叠；对齐、向量宽度和尾部都可解释。
 
-### MMA 的归属：从原子到输出 fragment
+### （二十四）MMA 的归属：从原子到输出 fragment
 
 **状态：待展开；学习任务已梳理。** TiledMMA 分层与 A/B/C 的不同坐标映射。
 
@@ -294,7 +298,7 @@ tags:
 - **TileLang 练习**：T.gemm 片段分配和 accumulator 可视化。
 - **通过条件**：元素计数守恒；点积输入布局与输出布局不能直接混用。
 
-### Swizzle 与 TMA 的地址契约
+### （二十五）Swizzle 与 TMA 的地址契约
 
 **状态：待展开；学习任务已梳理。** 软件访问地址必须匹配 descriptor 生成的布局。
 
@@ -304,7 +308,7 @@ tags:
 - **TileLang 练习**：显式 swizzle 与 TMA copy 配对实验。
 - **通过条件**：先小 tile round-trip，再接 MMA；分别核验对齐、base 与 phase。
 
-### 布局驱动的 GEMM 工程
+### （二十六）布局驱动的 GEMM 工程
 
 **状态：待展开；学习任务已梳理。** 把数据布局、搬运划分、计算划分组合起来。
 
@@ -314,7 +318,7 @@ tags:
 - **TileLang 练习**：共享内存布局 + 流水 + 向量写回。
 - **通过条件**：核心、epilogue 与尾块逐层校验，源码/配置/版本一起保存。
 
-### Attention 实现对照：统一流水、角色分工与双 consumer
+### （二十七）Attention 实现对照：统一流水、角色分工与双 consumer
 
 **状态：待展开；学习任务已梳理。** 同一数学接口下比较不同数据流组织。
 
@@ -324,7 +328,7 @@ tags:
 - **TileLang 练习**：对同一输入比较 cp.async / TMA 方案。
 - **通过条件**：统一 mask、精度、计时范围；不把框架差异都归因于某一条指令。
 
-### 大 D 的布局代数与寄存器预算
+### （二十八）大 D 的布局代数与寄存器预算
 
 **状态：待展开；学习任务已梳理。** QK/PV 两套 tile 与中间 P 的布局衔接。
 
@@ -338,7 +342,7 @@ tags:
 
 前置：Attention、布局代数、异步完成协议；需明确目标 GPU 能力。
 
-### Persistent Attention：任务循环与尾波
+### （二十九）Persistent Attention：任务循环与尾波
 
 **状态：待展开；学习任务已梳理。** CTA 常驻循环、linear task assignment、条件重缩放。
 
@@ -348,7 +352,7 @@ tags:
 - **TileLang 练习**：persistent attention 及 epilogue 路径。
 - **通过条件**：任务无漏算/重算，短长序列都测；比较整段时间，不能预设胜过厂商库。
 
-### 大 D 的 non-WS 流水：让所有线程参与 MMA
+### （三十）大 D 的 non-WS 流水：让所有线程参与 MMA
 
 **状态：待展开；学习任务已梳理。** chunk 解耦、跨 tile 预取、独立 barrier 集。
 
@@ -362,7 +366,7 @@ tags:
 
 前置：GEMM、数值误差和布局；先软件量化参考，再硬件低精度乘法。
 
-### FP8 的格式与量化前处理
+### （三十一）FP8 的格式与量化前处理
 
 **状态：待展开；学习任务已梳理。** e4m3、动态范围、per-row/per-block scale。
 
@@ -372,7 +376,7 @@ tags:
 - **TileLang 练习**：归约 + 转换融合；scale 排布。
 - **通过条件**：重建误差与饱和计数；明确舍入和 scale 方向，先不要求 Tensor Core。
 
-### FP8 GEMM：scale 如何进入累加
+### （三十二）FP8 GEMM：scale 如何进入累加
 
 **状态：待展开；学习任务已梳理。** 在线反量化、缩放粒度和矩阵乘等价式。
 
@@ -382,7 +386,7 @@ tags:
 - **TileLang 练习**：FP8 GEMM + scale epilogue。
 - **通过条件**：与反量化参考对齐，前处理成本计入端到端；不同 K scale 不能直接外提。
 
-### NVFP4：两级 scale 与打包
+### （三十三）NVFP4：两级 scale 与打包
 
 **状态：待展开；学习任务已梳理。** 4-bit 线格式、global/block scale、误差来源。
 
@@ -392,7 +396,7 @@ tags:
 - **TileLang 练习**：FP4 packing 与 scale layout。
 - **通过条件**：逐 byte round-trip；零值、极值、奇数长度和饱和策略均有定义。
 
-### Block-scaled MMA：scale 也是操作数
+### （三十四）Block-scaled MMA：scale 也是操作数
 
 **状态：待展开；学习任务已梳理。** scale fragment、数据布局与流水的协同。
 
@@ -406,7 +410,7 @@ tags:
 
 前置：稳定 Attention、FP8/FP4 格式与 scale；逐阶段定位误差，再看端到端收益。
 
-### 量化 Attention：误差在哪里被放大
+### （三十五）量化 Attention：误差在哪里被放大
 
 **状态：待展开；学习任务已梳理。** Q/K/V/P 的误差传播、平滑与不变性。
 
@@ -416,7 +420,7 @@ tags:
 - **TileLang 练习**：按阶段插入量化并保留误差日志。
 - **通过条件**：区分 logits、概率、输出误差；极端分布/长序列都要覆盖。
 
-### FP8 Attention 的前处理链
+### （三十六）FP8 Attention 的前处理链
 
 **状态：待展开；学习任务已梳理。** 融合、平滑、量化及 scale 生成。
 
@@ -426,7 +430,7 @@ tags:
 - **TileLang 练习**：归约、转置与量化的 tile 融合。
 - **通过条件**：各中间量均可核验，先测端到端占比再优化主 kernel。
 
-### FP8 persist-D 与 scale 折叠
+### （三十七）FP8 persist-D 与 scale 折叠
 
 **状态：待展开；学习任务已梳理。** 保持 D 的注意力流水与合法的 scale 外提。
 
@@ -436,7 +440,7 @@ tags:
 - **TileLang 练习**：scale 融入 QK / PV 与输出修正。
 - **通过条件**：证明每个外提条件，动态 range 与不同 shape 下误差达标。
 
-### FP8 大 D：Split-D 与并行布局
+### （三十八）FP8 大 D：Split-D 与并行布局
 
 **状态：待展开；学习任务已梳理。** 工作量增加与寄存器增长是不同瓶颈。
 
@@ -446,7 +450,7 @@ tags:
 - **TileLang 练习**：M/N 方向的 warp 排布与流水调整。
 - **通过条件**：并行度、spill 与耗时分别记录；不能仅看 occupancy。
 
-### FP4 Attention 的量化链
+### （三十九）FP4 Attention 的量化链
 
 **状态：待展开；学习任务已梳理。** NVFP4 格式在 Q/K/V 预处理中的应用。
 
@@ -456,7 +460,7 @@ tags:
 - **TileLang 练习**：两级 scale 生成和打包融合。
 - **通过条件**：数据/scale 同时对齐，精度与转换成本单独报告。
 
-### FP4 Attention：P 的两级量化
+### （四十）FP4 Attention：P 的两级量化
 
 **状态：待展开；学习任务已梳理。** online 状态、P 量化与输出缩放的交互。
 
@@ -466,7 +470,7 @@ tags:
 - **TileLang 练习**：block-scaled PV 与 rescale 的接口。
 - **通过条件**：各 KV tile 后验证状态；短序列正确不能代替长序列稳定性。
 
-### 基准与精度：把学习结果变成可复现实验
+### （四十一）基准与精度：把学习结果变成可复现实验
 
 **状态：待展开；学习任务已梳理。** 环境、计时、缓存、误差统计和生态约束。
 

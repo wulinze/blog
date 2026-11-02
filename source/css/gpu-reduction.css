@@ -1,0 +1,11 @@
+.reduce-lanes { display: grid; grid-template-columns: repeat(8,minmax(0,1fr)); gap: 7px; margin: 18px 0; }
+.reduce-cell { background: #20384b; border: 1px solid #4f8bae; border-radius: 7px; padding: 8px 3px; text-align: center; overflow-wrap: anywhere; }
+.reduce-cell small,.reduce-cell strong { display: block; }
+.reduce-cell small { font-size: 12px; color: #bdcadb; }
+.reduce-muted { opacity: .65; border-style: dashed; }
+.reduce-actions { display: flex; gap: 12px; margin: 15px 0; flex-wrap: wrap; }
+.reduce-actions button { border: 1px solid #759ac6; background: #244465; color: #f3f7ff; border-radius: 6px; padding: 9px 15px; cursor: pointer; font: inherit; }
+.reduce-actions button:disabled { opacity: .45; cursor: default; }
+.reduce-actions button:focus-visible { outline: 2px solid #f6c46d; }
+[data-levels] p { margin: .5rem 0; overflow-wrap: anywhere; }
+@media(max-width:540px) { .reduce-lanes { grid-template-columns: repeat(4,minmax(0,1fr)); } }

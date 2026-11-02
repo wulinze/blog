@@ -3,7 +3,7 @@ title: "{{ title }}"
 date: "{{ date }}"
 description: 从基本概念、执行过程与最小示例整理 CUDA 入门知识。
 categories:
-  - 系统知识
+  - LLM 推理
 tags:
   - CUDA
   - 基础学习

@@ -1,10 +1,10 @@
 ---
-title: Roofline：估算 GPU 性能上限，再用 Triton 和 TileLang 验证
+title: CUDA 算子学习（三）：GPU 架构与 Roofline——估算 GPU 性能上限，再用 Triton 和 TileLang 验证
 description: 从字节账、运算量和时间下界理解 Roofline，结合手绘图、交互模型、完整向量算子 demo 和两种语言的练习建立性能分析习惯。
 permalink: systems/gpu-roofline/
 date: 2026-11-02 15:25:00
 categories:
-  - 系统知识
+  - LLM 推理
 tags:
   - CUDA
   - 基础学习
@@ -17,7 +17,7 @@ tags:
 
 你已经知道 [GPU 的结构与内存层级](/systems/cuda-basics/)，也看过 [SM 调度、warp stall 和优化流程](/systems/cuda-overlap/)。现在接着解决一个具体问题：**写 kernel 之前，怎样估计这份工作至少要多长时间；测得很慢之后，怎样判断下一步该查什么？**
 
-本文根据 `leetcuda-20261029.pdf` 的“GPU 架构、执行模型与 Roofline”主题重新组织（PDF 阅读器第 34–42 页）。保留其从机器资源走向算术强度的主线，补充流量口径、缓存条件与实测验证，使用新的例子和图。完整后续主题见 [GPU 算子学习路线](/systems/gpu-learning-path/)，文章标题不使用原书编号。
+本文根据 `leetcuda-20261029.pdf` 的“GPU 架构、执行模型与 Roofline”主题重新组织（PDF 阅读器第 34–42 页）。保留其从机器资源走向算术强度的主线，补充流量口径、缓存条件与实测验证，使用新的例子和图。完整后续主题见 [GPU 算子学习路线](/systems/gpu-learning-path/)，博客编号接续已有的（一）基础、（二）性能分析；本篇为（三），对应原文第二章。
 
 完成本篇后，你应能：
 
@@ -471,7 +471,7 @@ ncu --kernel-name regex:elementwise --launch-skip 1 --launch-count 1 \
 下一轮：只修改一个主要因素，写出预期与反证条件
 ```
 
-下一步的主题是**归约与点积**：当很多线程必须共同产生一个结果时，向量加法里彼此独立的写回不再成立。需要学习 warp 内交换、block 内合并、跨 block 两阶段计算及浮点求和误差。相关任务已经列在 [学习路线](/systems/gpu-learning-path/) 中，后续资料完成后从那里进入。
+下一篇：[（四）归约与点积：从 warp 到全局结果](/llm/cuda-reduction/)。它对应原文下一章，继续学习 warp 内交换、block 内合并、跨 block 归约与浮点求和误差。
 
 <link rel="stylesheet" href="/css/cuda-learning.css">
 <link rel="stylesheet" href="/css/gpu-roofline.css">
