@@ -1,4 +1,4 @@
 interface:
   display_name: "博客写作"
-  short_description: "为个人博客整理算子学习、实现实践及 CUDA 入门等基础知识笔记"
-  default_prompt: "使用 $blog-writes，按学习目标选择模板并整理一篇技术博客草稿。"
+  short_description: "为个人博客编写算子、CUDA 学习笔记及含图、交互和代码的逐章教程"
+  default_prompt: "使用 $blog-writes，按学习目标整理技术博客，落实讲解、图、代码及本次要求的验证和发布。"
