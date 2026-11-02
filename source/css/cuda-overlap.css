@@ -1,0 +1,13 @@
+.overlap-slots { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; margin-top: 15px; }
+.overlap-slots span { padding: 8px 2px; text-align: center; border-radius: 4px; font: 12px/1.5 ui-monospace, monospace; }
+.overlap-slots .issued { background: #215b4c; color: #effff6; }
+.overlap-slots .idle { background: #482e33; color: #f6c0c0; }
+.overlap-timeline { max-width: 100%; overflow-x: auto; margin-top: 18px; }
+.overlap-timeline-inner { min-width: 650px; }
+.overlap-time-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.overlap-time-label { flex: 0 0 70px; font-size: 13px; }
+.overlap-time-track { position: relative; height: 38px; flex: 1; background: #0e1722; }
+.overlap-time-track > span { position: absolute; height: 100%; border: 1px solid #141e2b; box-sizing: border-box; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 11px; color: white; }
+.copy-bar { background: #285b92; }
+.compute-bar { background: #246b54; }
+@media (max-width: 767px) { .overlap-slots { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
