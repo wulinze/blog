@@ -1,0 +1,24 @@
+.cuda-demo { margin: 24px 0; padding: 20px; border: 1px solid #425066; border-radius: 10px; background: #141e2b; color: #e2e8f0; }
+.cuda-demo .demo-kind { display: block; margin-bottom: 12px; color: #a8c9ed; font-size: 13px; }
+.cuda-demo .demo-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 12px 0; }
+.cuda-demo label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cuda-demo input, .cuda-demo select, .cuda-demo button { font: inherit; border: 1px solid #54657d; border-radius: 5px; background: #233248; color: #fff; padding: 5px 10px; }
+.cuda-demo input { width: 82px; }
+.cuda-demo button { cursor: pointer; }
+.cuda-demo button:disabled { cursor: default; opacity: .45; }
+.cuda-demo :focus-visible { outline: 3px solid #a4d0ff; outline-offset: 3px; }
+.cuda-demo .demo-output { white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; margin: 14px 0 0; border-left: 3px solid #8dc8ff; background: #0e1722; font: 14px/1.8 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.cuda-demo .demo-blocks { display: grid; gap: 10px; margin-top: 14px; }
+.cuda-demo .demo-block { border: 1px solid #425066; padding: 10px; border-radius: 6px; }
+.cuda-demo .demo-cells { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cuda-demo .demo-cell { min-width: 60px; padding: 6px 8px; border: 1px solid #528775; border-radius: 5px; background: #193b32; font: 13px/1.6 ui-monospace, SFMono-Regular, monospace; }
+.cuda-demo .demo-cell.invalid { border-color: #c47979; background: #4a252b; }
+.cuda-demo .demo-step { color: #9eacbd; }
+.cuda-demo .demo-step.active { color: #e5f0ff; background: #293b53; border-radius: 5px; padding: 2px 8px; }
+.cuda-demo .demo-step.done { color: #9cd4b7; }
+.cuda-demo ol { padding-left: 25px; }
+.cuda-diagram { margin: 28px 0; }
+.cuda-diagram img { display: block; width: 100%; height: auto; border-radius: 8px; background: #fffdf6; }
+.cuda-diagram figcaption { color: #aab6c5; font-size: 14px; line-height: 1.8; padding: 10px 2px 0; }
+.cuda-diagram figcaption a { white-space: nowrap; }
+@media (max-width: 767px) { .cuda-demo { padding: 14px; } .cuda-demo .demo-output { font-size: 13px; } }

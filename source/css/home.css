@@ -20,6 +20,13 @@ h1 span { font-family: Georgia, serif; font-weight: 500; }
 .github-link:hover { background: var(--accent-hover); }
 .github-link span:nth-child(1) { color: #203b32; font: 11px Consolas, monospace; }
 .about-link { color: var(--muted); }
+.learning-feature { margin: 0 0 32px; border: 1px solid var(--line); border-radius: 8px; background: #15221f; }
+.learning-feature > a { display: block; padding: 22px 26px; }
+.learning-label { color: var(--accent); font-size: 12px; }
+.learning-feature h2 { margin-top: 10px; font-size: 20px; line-height: 1.6; letter-spacing: 0; }
+.learning-feature p { margin: 9px 0 14px; color: var(--muted); font-size: 13px; }
+.learning-open { color: var(--accent); font-size: 13px; }
+.learning-feature a:hover .learning-open { color: var(--accent-hover); }
 .topic-section { border-top: 1px solid var(--line); padding: 24px 0 32px; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 h2 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: .06em; }
