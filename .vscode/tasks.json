@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "博客：安装环境",
+      "type": "process",
+      "command": "${workspaceFolder}/blog",
+      "args": ["setup"],
+      "problemMatcher": []
+    },
+    {
+      "label": "博客：实时预览",
+      "type": "process",
+      "command": "${workspaceFolder}/blog",
+      "args": ["dev"],
+      "problemMatcher": []
+    },
+    {
+      "label": "博客：检查构建",
+      "type": "process",
+      "command": "${workspaceFolder}/blog",
+      "args": ["verify"],
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "博客：提交并发布",
+      "type": "process",
+      "command": "${workspaceFolder}/blog",
+      "args": ["publish", "--", "${input:commitMessage}"],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "commitMessage",
+      "type": "promptString",
+      "description": "提交说明（会上传全部未忽略改动）",
+      "default": "docs: update blog"
+    }
+  ]
+}

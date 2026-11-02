@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "dev": "hexo server --ip 127.0.0.1 --draft",
+    "draft": "hexo new draft",
+    "post": "hexo new post",
+    "ready": "hexo publish",
+    "verify": "npm run check && npm test && npm run build && npm run check:site",
+    "sync": "node tools/sync.mjs",
+    "publish": "npm run verify && node tools/sync.mjs --deploy",
     "build": "hexo clean && hexo generate --bail",
     "clean": "hexo clean",
     "deploy": "npm run check && npm run build && npm run check:site && node tools/publish.mjs",

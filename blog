@@ -1,0 +1,40 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")"
+project_dir="$(pwd)"
+runtime_bin="$project_dir/.local/runtime/node_modules/node/bin"
+export npm_config_cache="$project_dir/.local/npm-cache"
+
+if [ "${1:-}" = setup ]; then
+  npm install --prefix .local/runtime --no-package-lock --no-save node@22
+  export PATH="$runtime_bin:$PATH"
+  npm ci
+  node tools/setup-ssh.mjs
+  printf '\n配置完成。预览：./blog dev；发布：./blog publish -- "更新说明"\n'
+  exit 0
+fi
+
+if [ -x "$runtime_bin/node" ]; then
+  export PATH="$runtime_bin:$PATH"
+fi
+if [ "$(node -p 'process.versions.node.split(".")[0]')" != 22 ]; then
+  printf '需要 Node.js 22。请先运行 ./blog setup\n' >&2
+  exit 1
+fi
+
+if [ -f "$project_dir/.local/github-known-hosts" ]; then
+  export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$(git config --get core.sshCommand)}"
+fi
+
+if [ "$#" = 0 ]; then
+  printf '%s\n' \
+    './blog setup                   安装项目专用 Node.js 22 和依赖' \
+    './blog dev                     实时预览（包含草稿）' \
+    './blog draft -- "文章标题"     新建草稿' \
+    './blog ready -- "文章标题"     将草稿移入正式文章' \
+    './blog verify                  内容、测试、构建和站点检查' \
+    './blog sync -- "更新说明"      提交全部未忽略改动并推送源码' \
+    './blog publish -- "更新说明"   检查、推送源码并发布网站'
+  exit 0
+fi
+exec npm run "$@"

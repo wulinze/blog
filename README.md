@@ -6,6 +6,31 @@
 - 源码：https://github.com/wulinze/blog
 - 发布产物：https://github.com/wulinze/wulinze.github.io
 
+## 日常编辑与一键上传
+
+首次克隆后，在项目目录运行 `./blog setup`。它会把 Node.js 22、npm 缓存和依赖安装到项目本地目录，并配置当前仓库通过 GitHub SSH 443 端口推送；不会修改系统 Node.js。`.local/` 已被 Git 忽略，不能提交其中的密钥或运行环境。
+
+```bash
+./blog dev                         # http://127.0.0.1:4000，保存文件后刷新浏览器
+./blog draft -- "文章标题"          # 新建 source/_drafts/文章标题.md
+./blog ready -- "文章标题"          # 完成后移入 source/_posts/
+./blog publish -- "docs: 更新文章"  # 校验、提交源码、推送 GitHub、发布网站
+```
+
+用任意编辑器打开项目，直接修改 `source/_posts/` 中的 Markdown、`source/images/` 中的图片或站点配置。预览包含草稿，正式构建不包含草稿；发布前停止预览（Ctrl+C），避免两个 Hexo 进程同时更新缓存。草稿文件也会随源码上传到公开仓库，因此不要在草稿中保存私密内容。
+
+`./blog publish` 会先运行内容检查、单元测试、构建及全站检查，全部通过后，把当前仓库内**全部未被忽略的改动**提交并推送至 `wulinze/blog` 的 `master`，再将网站产物发布至 `wulinze/wulinze.github.io`。执行前可用 `git diff` 和 `git status` 检查改动。默认提交说明为 `docs: update blog`，也可像示例一样传入自定义说明。
+
+- 只上传源码：`./blog sync -- "更新说明"`。
+- 只检查：`./blog verify`。
+- 源码已上传，但网站发布失败：修复认证或网络后执行 `./blog deploy` 重试。
+- 远端已有新提交时，脚本会停止；先提交或暂存本地改动，再运行 `git pull --rebase` 解决差异后重试。脚本不强制推送，不自动丢弃本地改动。
+- 仅在 `master` 分支支持一键上传；其他分支请使用常规 Git 工作流。
+
+本地上传需要同时拥有两个仓库的写入权限。运行 `./blog setup` 后用 `git push --dry-run origin HEAD:master` 检查源码写入认证。如果提示 `Permission denied (publickey)`，将本机 SSH 公钥添加到 GitHub 账号的 [SSH keys](https://github.com/settings/keys)。如果项目内存在 `.local/github_ed25519`，配置会使用这个专用密钥；只将对应 `.pub` 文件内容添加到 GitHub。本地一键发布直接使用 SSH，无需配置 Actions 的 `BLOG_DEPLOY_KEY`。
+
+VS Code 用户可通过“终端 → 运行任务”启动预览、检查或一键发布。
+
 ## 本地预览
 
 使用 Node.js 22（版本记录在 `.nvmrc`）：
