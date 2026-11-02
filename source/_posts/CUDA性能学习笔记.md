@@ -69,7 +69,7 @@ date: 2026-11-02 13:35:00
 
 后文出现的 **tile** 是数据分块，**slot/buffer** 是存放块的空间，**stage** 是流水线中的缓冲与同步阶段，**overlap** 是独立工作在时间上重叠。这些是实现机制，不放进 bound 或 warp 状态表。第 6、7 节会让同一组数据从原理图走到代码与实验。
 
-本文配有 **11 张可编辑手绘图、6 个浏览器概念实验、5 份完整 CUDA 程序**。图中的队列是功能示意，不是特定 GPU 的精确电路图；模拟时间单位不对应真实 GPU 周期。资料核对日期：2026-11-02。本机与当前可访问的计算环境均无可用 CUDA GPU／`nvcc`，CUDA 源码尚未编译和 GPU 实跑；不提供虚构测速数据。
+本文配有 **13 张可编辑手绘图、6 个浏览器概念实验、5 份完整 CUDA 程序**。图中的队列是功能示意，不是特定 GPU 的精确电路图；模拟时间单位不对应真实 GPU 周期。资料核对日期：2026-11-02。本机与当前可访问的计算环境均无可用 CUDA GPU／`nvcc`，CUDA 源码尚未编译和 GPU 实跑；不提供虚构测速数据。
 
 [下载全部源码与 Makefile](/downloads/cuda-overlap/cuda-overlap-demos.zip) · [编译、校验和计时说明](/downloads/cuda-overlap/README.txt)
 
@@ -899,30 +899,170 @@ int main(int argc, char** argv) {
 
 代价是专门的 warp、更多 shared stage、屏障和控制状态都要资源；消费者的寄存器需求也可能高。最终应比较正确完成相同工作所需的时间，而不是要求 occupancy 数字一定上升。异步矩阵计算还可能在消费者发出之后继续使用 shared 数据，必须等相应计算完成，不能仅凭“指令已发出”就释放 slot。[Hopper Tuning Guide](https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html)
 
-## 9. 怎样用 profiler 把这些判断连起来
+<a id="performance-analysis"></a>
 
-先确认结果正确，再固定输入、编译选项和 GPU 条件看耗时。端到端重叠用 Nsight Systems 看时间线；单 kernel 的管线、访存和 warp 行为用 Nsight Compute。采集本身可能改变执行，尤其多次 replay 不能直接代表原本跨 stream 的并发时间线。
+## 9. 性能分析流程：从症状走到证据，再决定优化
+
+这一节根据学习截图中的决策树和指标字典重新整理，并对照 NVIDIA 官方指标定义补充适用范围。**先找真正影响目标耗时的工作，再把“怀疑什么、怎样验证、改什么”连起来。** 图中的分支是调查入口，不是只看两个百分比就能确定的结论。
+
+### 9.1 先定位热点，确认采集可信且工作量足够
+
+1. **先验正确性与基线。** 固定输入、GPU、编译选项、精度、时钟／功耗条件及其他负载，记录未插入重型 profiler 时的耗时。区分单 kernel 时间和端到端时间。
+2. **Nsight Systems 找优先级。** 看 kernel、拷贝、CPU 提交和同步的时间线。总耗时高或频繁出现的 kernel 是候选，但并发 kernel 的耗时之和不等于端到端关键路径；不能仅凭汇总表的占比宣称优化它就能等比例加速应用。
+3. **对少数目标启动做 Nsight Compute。** 使用优化编译和 `-lineinfo`，按需要采集 section。核对 replay、缓存控制、时钟控制与原始运行场景是否一致；指标矛盾时先修采集，不先改 kernel。
+4. **先排除工作量不足。** 看 grid、block、SM 数、waves 和尾部。若独立 block 太少，GPU 天然填不满，优先考虑把独立工作展开或合理批处理，而不是直接增加 stage。若只是大量短 kernel 的提交开销，先处理任务粒度、图执行等端到端问题。
+
+这些前置检查解释了为什么“SM% 和 MEM% 双低”不一定是 kernel 内的访存等待：也可能是任务太小、尾部太长、提交空档或采集条件不同。[Nsight Systems：Kernel Summary](https://docs.nvidia.com/nsight-systems/AnalysisGuide/index.html) · [Nsight Compute：Triage Workflow](https://docs.nvidia.com/nsight-compute/ComputeTriage/)
+
+### 9.2 读 SOL：它是入口，不是占用率或瓶颈判决
+
+SOL 是 Speed Of Light 的缩写，工具用它表示相对某种峰值／可持续吞吐基准的表现。先在 **SpeedOfLight** 概览读 SM 和 memory 侧，再展开底层管线；不要把它与 warp occupancy、`nvidia-smi` 的 GPU utilization 混用。
+
+| 观察对象 | 常见指标或界面入口 | 读数需要补上的含义 |
+| --- | --- | --- |
+| SM 侧概览 | `sm__throughput.avg.pct_of_peak_sustained_elapsed` | 不是所有计算单元“忙碌百分比”的简单平均，更不等于 occupancy；展开看由哪些通路主导 |
+| memory 侧概览 | SpeedOfLight 的 Memory Throughput／breakdown；某些版本提供 `gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed` | 不直接等于 HBM/DRAM 带宽；继续拆 L1/TEX、L2、DRAM 和指令／请求通路 |
+| 目标层吞吐 | 如 `dram__throughput.avg.pct_of_peak_sustained_elapsed`，以及对应 L1/TEX、L2 的 breakdown | 是哪个层的哪些计数、用 active 还是 elapsed 周期作分母；不能混用口径比较 |
+| 指令是否发得出来 | Scheduler Statistics 的 active、eligible、issue activity | 用来区分候选不足、依赖等待和通路接收能力；与吞吐概览交叉看 |
+
+Nsight Compute 的 throughput 指标会取其构成计数器的峰值百分比中的最大值来表达压力，因此“某个概览很高”不意味着其覆盖的全部资源同时饱和。`sm__...` 与 `smsp__...` 的聚合范围也不同。具体指标名称和可用性按目标 GPU、工具版本查询。[Nsight Compute：Metrics Structure](https://docs.nvidia.com/nsight-compute/ProfilingGuide/#metrics-structure)
+
+截图中的“相差 20”“双低小于 40”“双高大于 60”“DRAM 大于 70”适合作为特定实验的筛选经验，不能作为所有硬件和 kernel 的硬阈值。本篇流程图因此使用“哪侧更忙、是否接近合理可持续水平”，并要求下一步证据；未明显落入某一象限时，继续看 breakdown 和绝对耗时，不强行分类。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-overlap/12-analysis-flow.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/12-analysis-flow.svg" alt="性能分析从热点定位与采集验证，经任务规模和SOL分流，到内存、计算、等待及高利用分支，最终统一复测" loading="lazy"></a>
+<figcaption>图 9：调查入口与优化结论分开，每条分支最后都要验证。 <a href="/images/cuda-overlap/12-analysis-flow.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/12-analysis-flow.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+**如何沿图走：** 蓝色是前置检查；橙色调查内存服务压力，紫色调查计算／指令通路，红色调查未被隐藏的等待，绿色调查是否已接近当前实现的合理上限。四条分支可以同时存在，只是每轮先处理最重要的一个。左侧绿色回线表示复测后重新分流。所有分支最后都回到正确性与同条件耗时验证，不能把绿色分支直接写成“停止优化”。
+
+### 9.3 四条分支各自要回答什么
+
+| 概览现象 | 首先建立的假设 | 下一步证据与动作 |
+| --- | --- | --- |
+| memory 侧更忙 | 某层搬运或请求服务成为主要限制 | 按 9.6 看哪层吞吐高、流量为何这么大、地址是否浪费；若带宽未饱和且 issue 有空档，再转入等待分支 |
+| SM／计算侧更忙 | 某种计算或指令发出通路压力较大 | 按 9.7 看具体 FP／INT／Tensor／特殊函数等通路，核对算法工作量与 SASS；不是一律换 MMA |
+| 两侧都不忙 | 工作供应不足或关键依赖等待暴露 | 排除 9.1 的小任务／采集问题后，看 active、eligible、issue 与主要等待原因，再查 9.5 的驻留资源 |
+| 两侧都忙 | 当前实现可能已较好利用资源，也可能有大量无效工作 | 检查有效字节／有效 FLOP、重复计算、端到端贡献；决定是否改算法、融合或减少物化，而不是凭百分比结束 |
+
+“停止优化”的依据是：正确性成立、代表性输入下收益已小、端到端目标已满足，进一步复杂度不值得。吞吐比例下降但耗时更短也可能是好事，例如减少了多余字节或计算。[NVIDIA Compute Triage Guide](https://docs.nvidia.com/nsight-compute/ComputeTriage/)
+
+### 9.4 warp stall 字典：先定位等待的消费者，再回溯生产者
+
+下面列的是**原因名称**，不是独立的瓶颈标签。常见采样指标族为 `smsp__pcsamp_warps_issue_stalled_*`；部分平台另有仅在调度器未发出周期采样的 `_not_issued` 变体。实际后缀、可用性和含义以目标设备的指标说明为准。不要把不同采样族的比例直接混算。
+
+| 原因 | 它说明什么 | 先补哪项证据 | 证据成立后可尝试什么 |
+| --- | --- | --- | --- |
+| `wait` | 等固定延迟的执行依赖 | 对应 SASS 的生产者／消费者链，独立指令与 eligible 是否不足 | 拆独立累加链、增加 ILP、重排独立工作；有驻留余量时再考虑更多 warp |
+| `long_scoreboard` | 等 L1TEX 相关操作的结果依赖，如 global/local/texture/surface | 找等待结果的指令与相关 load；看命中、流量、合并度、是否 spill | 先修地址与复用，再评估预取、`cp.async`／TMA 或 stage；不能直接把它解释成“在等 TMA” |
+| `short_scoreboard` | 等非 L1TEX 的 MIO 操作结果，shared 是常见来源之一 | 是否真有 shared 依赖、bank conflict，也检查特殊函数或其他相关操作 | 减少 shared 往返、改善布局、增加独立工作；不能仅凭名字断定 bank conflict |
+| `math_pipe_throttle` | 目标数学执行通路暂不能接收／不可用 | 哪类 pipe 已繁忙，发出、指令混合与依赖情况 | 若目标 pipe 饱和，减少相应工作或调整指令混合；若还有空档，查依赖与调度，不能一律加 warp |
+| `lg_throttle` / `mio_throttle` | 相应 local/global 或 MIO 入口／队列压力，名称依设备而异 | 指令粒度、发出密度、下游服务和队列压力 | 适当宽访存、减少冗余操作、交错独立算术／搬运，并检查副作用 |
+| `sleeping` | warp 的线程处于阻塞、让出或休眠等状态 | 是显式 sleep、同步实现的等待，还是生产／消费不均衡；看另一角色此时在做什么 | 调整等待策略或 producer/consumer 工作分配；必要的等待不是无条件的浪费 |
+| `barrier` | 等同 CTA 的其他参与者到达相应屏障 | 谁早到、谁晚到，是否分工不均或数据迟到 | 先改善屏障前的工作与协作范围；只在证明依赖允许后减少屏障，不能直接删同步 |
+| `not_selected` | 有可发出的候选，但本次选择了别的 warp | issue 是否持续有效，相关 pipe 是否有用地工作 | 通常无需清零；存在候选不等于整个 kernel 已无其他瓶颈 |
+| `selected` | 被选择并发出指令的调度状态，不是真 stall | 发出的是什么指令，完成了多少有效工作 | 用耗时和有效吞吐评价；不是无条件追求样本数量更大 |
+
+尤其注意：TMA／异步矩阵操作的等待可能体现在 transaction barrier、group wait 或其他架构相关同步状态中，必须看实际指令和协议，不能把所有异步数据等待都归成 `long_scoreboard`。也不能把 MIO“结果没好”的 scoreboard 依赖与 MIO“入口满”的 throttle 当成同一机制。[Nsight Compute：Warp Stall Reasons](https://docs.nvidia.com/nsight-compute/ProfilingGuide/#warp-stall-reasons) · [CUDA：异步拷贝完成机制](https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/async-copies.html)
+
+采样常记在**消费尚未就绪结果的指令**处。例如 `y=fmaf(x,...)` 等前面的 `x=input[i]`，应沿依赖回到 load 的地址和访问模式。只把采样热点那一行代码删减，可能没有触及原因。一个 warp 的等待样本也不是整个 SM 的停机时间，其他 warp 可能正在工作。
+
+### 9.5 occupancy 分支：是装不下，还是没给够任务
+
+先把两种情况分开：
+
+- **理论容量就低**：读 occupancy 的限制项。寄存器过多、shared 太大、线程／block 数上限等都可能限制驻留。再评估缩小 tile、减少 stage、缩短活跃值生命周期、调整 block 等候选；这些动作也可能损失复用或延迟覆盖。
+- **理论容量尚可、实际偏低**：回看 grid／waves、尾部、负载不均以及执行阶段。不能仅凭 achieved occupancy 低，就认定寄存器是瓶颈。
+
+`__launch_bounds__` 是编译约束工具，不是“把指定数量 block 强行塞进 SM”的开关；压寄存器也可能引入 spill。增加 resident warp 之前，先确认有资源和足够独立工作；目标通路已经饱和时，更多驻留未必改善耗时。
+
+local load/store 非零还要区分**编译器安排在线程私有 local memory 的对象**与**寄存器 spill**。结合编译器资源／spill 报告、SASS、local 字节量和源码定位，不能仅凭 `LDL/STL` 就断定超过某个固定寄存器阈值。每线程与每 SM 的限制依架构而定。[CUDA Best Practices：Occupancy 与 Registers](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#occupancy)
+
+### 9.6 Memory Workload：分层看吞吐、命中与访问放大
+
+这里有三个相互独立的问题：**哪条通路忙、数据由哪层提供、有没有为有效数据付出多余请求／传输**。只看命中率无法回答另外两问。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-overlap/13-memory-diagnosis.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/13-memory-diagnosis.svg" alt="分别检查L1/TEX、L2、DRAM的吞吐命中及访问放大，并独立检查shared bank冲突和资源限制" loading="lazy"></a>
+<figcaption>图 9A：按层归因，并将访问模式、缓存与驻留资源交叉检查。 <a href="/images/cuda-overlap/13-memory-diagnosis.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/13-memory-diagnosis.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+图从上往下调查 global 访问的服务层级；shared 是旁边的独立分支。每层的框都是“检查什么”，不是说每次访问必定走到最下面。L1 允许被某些访问策略绕过；TMA 等路径应按其实际指令语义分析。
+
+| 层级或维度 | 观察入口／常见例子 | 怎样解释，下一步做什么 |
+| --- | --- | --- |
+| L1/TEX | `l1tex__t_sector_hit_rate.pct`、相关 throughput／请求表 | 先核对缓存策略和该访问是否本来应复用。一次性流式读低命中可以正常；应复用却反复 miss 时，再考虑布局、tile 或显式 shared 复用 |
+| L2 | `lts__t_sector_hit_rate.pct`、L2 throughput、字节／sector | 与工作集、CTA 的实际访问顺序和重复读取对应。复用距离太长时可试调整分块／调度；高命中也可能使 L2 本身成为瓶颈 |
+| DRAM | `dram__throughput.avg.pct_of_peak_sustained_elapsed`、读写字节和带宽 | 接近代表性访问模式下的可持续水平且字节量解释耗时时，优先减少流量；带宽低但 issue 空档多时回查依赖与在途并发 |
+| 合并访存 | L1/TEX 表中 Requests、Sectors、Sectors/Req，以及对应访问类型 | 同时核对 active lane、每 lane 字节宽度、对齐和访问模式；比率高并不总意味着浪费 |
+| shared | bank conflicts、wavefronts、shared 指令与服务吞吐 | 判断是否有冲突重放或服务压力，随后试 padding／swizzle 或减少往返；这不是 L1 缓存命中问题 |
+
+这些是常见名称示例，运行前用 `ncu --query-metrics` 确认本机支持的完整名字；global/local、load/store、texture 等流量混在一个总指标里时，尽量拆出与当前假设对应的限定项。[Nsight Compute：Memory Workload Analysis 与 Memory Tables](https://docs.nvidia.com/nsight-compute/ProfilingGuide/#memory-tables)
+
+**一个容易误判的“4”。** 对 32 个活跃 lane、每 lane 读取一个 4-byte float、连续且按 sector 对齐的教学访问，128 byte 覆盖四个 32-byte sector。但若每 lane 一次合法读取 float4，整 warp 的有效数据就变成 `32*16=512 byte`，至少覆盖 16 个这样的 sector；不能继续拿“4”作为所有向量化访问的正确性或效率阈值。部分活跃 lane、广播／重叠地址和未对齐也会改变关系。实际 request 拆分需看对应架构与工具计数口径。
+
+因此诊断访问放大时，需要把**相同有效数据量**对应的指令、请求、sector 和下游字节一起比较，而不是只追某个比率越小越好。向量化主要改变单线程的指令宽度；跨线程地址有跨距时，应先修映射，不能指望套 `float4` 自动解决合并访存。[NVIDIA：Vectorized Memory Access](https://developer.nvidia.com/blog/cuda-pro-tip-increase-performance-with-vectorized-memory-access/) · [CUDA Best Practices：Coalesced Access](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#coalesced-access-to-global-memory)
+
+**L1/shared 容量的代价。** 许多架构二者共用底层 SRAM，且每块 shared 需求还会限制驻留。增加 tile/stage 同时可能改变复用、缓存容量和 occupancy，应该一起测量。截图中的“某 GB202 kernel 每多 16 KB shared 慢若干微秒”缺少本篇可复现实验条件，不能推广为线性规律；本篇也未在该 GPU 上测得这个结果。
+
+**不要把不同 swizzle 混起来。** CTA swizzle 是改变逻辑工作分块的调度／访问顺序以探索局部性；shared swizzle 是改变 shared 中的地址布局以影响 bank 映射。Stream-K 则涉及矩阵乘法的工作划分与负载平衡，并不是一个“L2 命中率低就打开”的通用缓存选项。初学时先用第 6 节的固定 tiling 例子把数据复用弄清楚。
+
+### 9.7 compute 分支：查“忙的是谁”，再查“忙得是否有价值”
+
+- **Tensor 通路高**：检查是否确实完成了有价值的矩阵工作，数据类型与计算量是否合适。降低 FLOP、融合消除中间工作或改变精度，需要算法和误差要求允许；不能只为让指标漂亮改变正确性。
+- **FP／INT／特殊函数通路高，Tensor 低**：先确认任务是否有可映射的矩阵运算及合适形状／精度。如果只是地址计算、归约或不适合 MMA 的工作，Tensor 低很正常。适合 GEMM 的情形才进一步评估库实现或 MMA／WGMMA 等路径。
+- **发射指令很多，有效算术少**：查看分歧、地址与索引开销、零碎访存、额外转换和编译产生的控制指令。不同类型的 pipe 压力不能一概解释为“算力不够”。
+
+`math_pipe_throttle` 可以提示某通路的接收能力问题，但它与 `wait` 的结果依赖不同。目标 pipe 已持续饱和时，增加同类指令的候选 warp 不会凭空提高该 pipe 的吞吐。[Nsight Compute：Compute Workload Analysis](https://docs.nvidia.com/nsight-compute/ProfilingGuide/)
+
+### 9.8 把流程真正用到本篇 demo
+
+下面是可在安装工具的 NVIDIA GPU 环境执行的采集方式；本机无此环境，以下是操作示例，不是本文已取得的测量报告。先执行程序的校验，再采集，报告文件保存在运行命令的当前目录。
 
 ```bash
-# 查看本机支持的 section；名称与可用指标依工具版本而变。
+# 先看时间线：哪些 kernel / 拷贝 / 主机间隔影响整体。
+nsys profile --trace=cuda,nvtx --output=overlap_trace ./overlap 8 16
+nsys stats --report cuda_gpu_kern_sum overlap_trace.nsys-rep
+
+# 再按本机实际可用的 section 和 metric 采集。
 ncu --list-sections
-# 下列为常见 section 名称，先与上一步对照。
-ncu --section LaunchStats --section Occupancy --section SchedulerStats \
-    --section WarpStateStats --section MemoryWorkloadAnalysis ./tiling 256 256 256
+ncu --query-metrics
+
+# 本文 tiling 程序每个版本先校验一次，再 warmup 五次。
+# 因而跳过目标 kernel 的前六次匹配启动，采一轮计时阶段的启动。
+ncu --kernel-name regex:matmul_tiled --launch-skip 6 --launch-count 1 \
+    --section SpeedOfLight --section LaunchStats --section Occupancy \
+    --section SchedulerStats --section WarpStateStats \
+    --section MemoryWorkloadAnalysis --section ComputeWorkloadAnalysis \
+    --output=tiled_report ./tiling 256 256 256
 ```
 
-| 观察 | 下一步的问题 | 不应直接下的结论 |
-| --- | --- | --- |
-| theoretical occupancy 低 | 被寄存器、shared、线程还是 block 上限限制？ | 立刻强压寄存器一定更快 |
-| active 多，eligible 少，issue 空档多 | 等依赖、同步，还是资源入口？ | 只要继续增大 grid 就能修复 |
-| long scoreboard 多 | 哪个消费者等 L1TEX 相关结果？实际地址、命中和流量怎样？ | 每一个样本都表示 HBM miss |
-| short scoreboard 多 | 哪类 MIO 结果依赖？shared 布局是否有关？ | 一定是 shared bank conflict |
-| LG/MIO throttle 多 | 相应队列／入口是否承压，是否有过多零碎指令？ | 只需要更多 resident warp |
-| math pipe throttle 多 | 某类计算通路是否已饱和、指令混合是否失衡？ | 所有计算单元都已跑满 |
-| barrier 多 | 哪些参与者先到，谁迟到，是否有工作不均衡？ | barrier 语句本身消耗了全部等待时间 |
-| not selected 多 | 可发候选是否充足，发出槽是否在忙？ | 应把它像错误一样清零 |
+先检查筛选结果确实匹配目标 kernel；若修改了 demo 的启动顺序，应相应修改 skip。只采某一个 kernel 是为了定位它内部的机制；Nsight Compute 可能通过 replay 等方式改变原本并发条件，不能把该报告当作端到端 overlap 时间线。[Nsight Systems 使用指南](https://docs.nvidia.com/nsight-systems/UserGuide/index.html) · [Nsight Compute 采集说明](https://docs.nvidia.com/nsight-compute/ProfilingGuide/)
 
-stall 样本可能记在等待结果的**消费者指令**上，而不是发起请求的 load 那一行；要联系源码与 SASS。总 stalled 样本比例也不等于整个 SM 空闲比例：采样到 warp A 在等的同时，warp B 仍可能工作。优先判断 issue 和相关吞吐是否存在可改善的空档，再解释原因。[Nsight Compute Profiling Guide](https://docs.nvidia.com/nsight-compute/ProfilingGuide/) · [Compute Triage Guide](https://docs.nvidia.com/nsight-compute/ComputeTriage/)
+| 用哪个 demo | 本轮只检验什么假设 | 对照哪些证据 | 结果如何解释 |
+| --- | --- | --- | --- |
+| `coalescing.cu` | 连续映射减少每份有效数据的访问放大 | 相同 N 下的 sectors/requests、下游字节和耗时 | 请求改善但时间不变时，继续查缓存复用、地址指令和其他瓶颈，不自动宣称带宽加速 |
+| `tiling.cu` | 显式块内复用减少重复 global 访问 | naive/tiled 的 global 与 shared 流量、寄存器／shared、occupancy 和时间 | global 访问减少可能伴随 shared 与屏障成本；最终看总耗时 |
+| `vectorized.cu` | 宽访存减少完成相同字节所需的指令开销 | SASS 访问宽度、指令数、有效字节与时间 | 每个请求覆盖更多 sector 可能是宽指令的正常结果，不按标量的“4”判坏 |
+| `overlap.cu` | 下一 tile 的搬运提前，减少暴露的等待 | 固定 tiles/rounds 下的两个版本、等待的消费者、issue 与时间 | async 源码和 stall 占比下降都不独立证明加速；确认正确性和绝对耗时 |
+| `occupancy.cu` | 启动配置和 shared 如何限制理论驻留 | API 给出的容量，结合实际 kernel 的资源与 profiler | 它只查询示例 kernel 的理论容量，不是其他 kernel 的 achieved occupancy |
+
+举一个**假设分析过程**：`tiling` 的 tiled 版本比 naive 快，但 achieved occupancy 较低。先核对全量输出正确，再看到 global 请求减少而 shared 使用增加，这就支持“复用收益超过了驻留损失”的解释。若随后加深 stage 反而变慢，应回查 shared 占用、可发 warp 与新增同步，而不是坚持“更深流水一定更好”。这些是如何推理的例子，不是本篇实测结论。
+
+### 9.9 每轮保留一条可以被否证的记录
+
+```text
+对象：GPU / Toolkit / 编译参数 / 输入 / 目标 kernel 或阶段
+基线：正确性；独立计时；端到端时间；采集设置
+症状：例如 issue 有空档，活跃 warp 多、可发 warp 少
+假设：哪条具体依赖或通路造成空档
+证据：源代码与 SASS 位置、相关层级指标、反例排查
+改动：一次主要改变一个因素，注明附带资源变化
+结果：相同工作量再次校验、计时、采集
+结论：保留或回退；若瓶颈迁移，重新进入流程
+```
+
+这条闭环把前文的概念连起来：**SM 结构说明资源在哪里，warp 状态说明为何不能发，分层指标说明等谁或挤在哪里，tiling／向量化／overlap 是带着证据选择的实现手段。**
 
 ## 10. 检查自己是否理解
 
