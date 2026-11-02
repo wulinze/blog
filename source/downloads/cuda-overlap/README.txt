@@ -7,6 +7,7 @@ https://wulinze.github.io/systems/cuda-overlap/
   vectorized.cu    scalar copy vs float4 copy，处理非 4 倍数尾部
   tiling.cu        naive FP32 GEMM vs 16x16 shared tiled GEMM，处理尾块
   occupancy.cu    查询编译后 kernel 资源与理论驻留容量，不启动 kernel
+  overlap.cu      同步分块 vs cp.async 双缓冲，要求 CC 8.0+
   Makefile        编译与边界案例校验
 
 验证状态（2026-11-02）
@@ -16,7 +17,8 @@ https://wulinze.github.io/systems/cuda-overlap/
 
 环境与编译
   NVIDIA GPU + 匹配驱动 + CUDA Toolkit + C++17 host 编译器 + make。
-  这些程序不使用 cp.async / TMA，不要求 Hopper 专属硬件。
+  overlap.cu 使用 cp.async，要求 CC 8.0+（Ampere 起）；其余四个程序不使用此特性。
+  本包不包含可运行的 TMA 程序，不要求 Hopper 专属 TMA 功能。
   将 ARCH 改为目标 GPU 且当前 Toolkit 支持的架构：
     make ARCH=sm_80
     make check ARCH=sm_80
@@ -29,6 +31,8 @@ https://wulinze.github.io/systems/cuda-overlap/
   ./vectorized 16777219
   ./tiling 256 256 256
   ./occupancy
+  ./overlap 1 16
+  ./overlap 8 64
   coalescing 的 N 必须是 1024 的正整数倍；代码会拒绝不支持的长度。
   vectorized 支持任意正 N，cudaMalloc 的基址满足 float4 对齐；不要随意偏移指针。
   tiling 参数为 M N K，均为 1..1024，缺省 129 193 257；CPU 参考在大矩阵上会耗时。
@@ -56,3 +60,11 @@ https://wulinze.github.io/systems/cuda-overlap/
 TMA 说明
   正文 TMA 部分是描述符、phase、transaction barrier、proxy 与 slot 生命周期的协议解释。
   它不是可直接编译的 TMA demo；需要按目标 Toolkit 的 NVIDIA 官方完整示例实现。
+
+双缓冲示例
+  overlap 参数为每块 tile 数（1..64）和计算 rounds（1..256）。
+  固定 128 线程，每线程一份 float4，两个 shared slot；CPU 校验邻居读取及 FMA。
+  make check 含 tiles=1（排空）、2（双 slot）、3（复用）案例。
+  同步与异步版本都校验后计时，未保证异步版更快；对比时固定相同参数。
+  可执行 compute-sanitizer --tool racecheck ./overlap 3 16 检查共享内存依赖。
+  当前无 nvcc/GPU；此新增示例也尚未编译或 GPU 运行。

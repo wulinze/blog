@@ -64,6 +64,21 @@
       };
       t.addEventListener('change', render); r.addEventListener('input', render); stages.addEventListener('input', render); render();
     },
+    tiling(root) {
+      const {panel, result} = setup(root); let base = 0;
+      const next = el('button', '下一轮 K 分块'), reset = el('button', '重置'); next.type = reset.type = 'button'; panel.append(next, reset);
+      const A = [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]];
+      const B = [[1,0,1,0],[0,1,0,1],[1,1,1,1],[2,0,0,2]];
+      const render = () => {
+        const at = A.slice(0,2).map(row => row.slice(base,base+2));
+        const bt = B.slice(base,base+2).map(row => row.slice(2,4));
+        const contributions = [0,1].map(p => A[1][base+p]*B[base+p][2]);
+        const cumulative = Array.from({length:base+2}, (_, p) => A[1][p]*B[p][2]).reduce((a,b)=>a+b,0);
+        result.textContent = `教学 TILE=2；CUDA demo 使用 TILE=16，同一套下标规则\n输出 block=(1,0)，跟踪 thread=(0,1) → C[1,2]\n本轮 base=${base}，处理 K 下标 ${base}、${base+1}\nA tile：${JSON.stringify(at[0])} / ${JSON.stringify(at[1])}\nB tile：${JSON.stringify(bt[0])} / ${JSON.stringify(bt[1])}\n先合作填 tile，再经第一道屏障，才能跨线程读。\nC[1,2] 本轮增加 ${A[1][base]}×${B[base][2]} + ${A[1][base+1]}×${B[base+1][2]} = ${contributions.reduce((a,b)=>a+b,0)}\n累计 sum = ${cumulative}${base===2?'；K 已遍历完，写出 C[1,2]=12。':'；第二道屏障确认本轮读完后，再覆盖 shared。'}`;
+        next.disabled = base === 2;
+      };
+      next.addEventListener('click', () => {base=2;render();}); reset.addEventListener('click', () => {base=0;render();}); render();
+    },
     pipeline(root) {
       const {panel, result} = setup(root);
       const n = field(panel, 'tile 数 N', 4, 1, 8), l = field(panel, '搬运 L', 3, 1, 12), c = field(panel, '计算 C', 5, 1, 12);

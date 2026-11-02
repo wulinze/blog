@@ -1,7 +1,7 @@
 NVCC ?= nvcc
 ARCH ?= sm_80
 NVFLAGS ?= -O3 -std=c++17 -lineinfo
-PROGRAMS = coalescing vectorized tiling occupancy
+PROGRAMS = coalescing vectorized tiling occupancy overlap
 .PHONY: all check clean
 all: $(PROGRAMS)
 %: %.cu common.cuh
@@ -17,5 +17,8 @@ check: all
 	./tiling 17 19 23
 	./tiling
 	./occupancy
+	./overlap 1 1
+	./overlap 2 16
+	./overlap 3 16
 clean:
 	rm -f $(PROGRAMS)

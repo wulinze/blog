@@ -15,33 +15,92 @@ date: 2026-11-02 13:35:00
 
 [第一篇：CUDA 基础与 GPU 物理／逻辑结构](/systems/cuda-basics/) 解释了“任务在哪里执行、数据在哪里”。第二篇接着问：**SM 里面如何调度？线程为什么等？怎样让等待期间仍然有工作可做？**
 
-先认识下表，再沿 **SM 结构 → 一条指令的流转 → 瓶颈判断 → resident warp 与 occupancy → 分层优化 → 异步流水线与 TMA** 阅读。最后附 Nsight Compute 的观察方法。不要第一次就记住所有 API。
+术语先分成三类：**bound 是瓶颈判断，warp 状态是某一时刻发生了什么，指标是如何统计这些现象**。先读下面三张表，再沿 **SM 结构 → 指令流转 → 瓶颈判断 → 驻留与调度 → tiling → overlap 实现** 阅读。不要用一个指标直接替代瓶颈结论。
 
-| 术语 | 本篇使用的含义 | 首先排除的混淆 |
+### A. 瓶颈分类：bound 到底被什么限制
+
+`bound` 的意思是“受某种限制约束”，讨论时必须说清对象：整个程序、某个 kernel，还是其中一个阶段。这里先区分**工作能否持续供应**与**服务吞吐是否已饱和**。
+
+| 分类 | 限制是什么 | 如何建立判断 | 不能直接推出什么 |
+| --- | --- | --- | --- |
+| compute-bound，计算吞吐受限 | 某类算术执行管线的处理能力 | 独立工作充足，相关计算通路接近可持续吞吐，减少对应计算能改善耗时 | 有很多乘加就一定算力饱和；某条管线满就代表所有单元都满 |
+| memory-bound，访存受限 | 广义指数据访问限制进度 | 继续定位内存层和机制：HBM/L2/shared，带宽、依赖或访问效率 | 不能只凭这个标签决定加 warp；Roofline 中该词常采用“带宽受限”的狭义含义 |
+| bandwidth-bound，带宽受限 | 某条数据通路单位时间能服务的字节数 | 相关层接近有效可持续带宽，流量与运行时间对应 | HBM 没满不代表所有访存层都没满；加在途请求不会增加已饱和带宽 |
+| latency-bound，延迟受限 | 关键依赖的等待没有被独立工作覆盖 | issue 存在空档，结合依赖链、eligible warp 和通路利用率寻找等待来源 | 低带宽本身不足以证明它；算术依赖也能造成延迟受限 |
+| synchronization-limited，同步限制（补充） | 工作等待其他参与者或某一阶段完成 | 对照 barrier、工作不均衡及生产／消费时间线 | barrier 上采样多，不等于屏障指令本身执行很慢 |
+| launch／host-overhead limited，提交或主机开销限制（补充） | 程序时间主要花在 kernel 外或大量短任务提交上 | 看端到端 CPU/GPU 时间线和空档，改变任务粒度验证 | 单个 kernel 内的 occupancy 通常解释不了整个程序的空闲 |
+
+这不是互斥标签的考试题。例如“访存受限”还可以细分为“HBM 带宽受限”或“地址依赖造成访存延迟受限”；同步等待也可能表现为可发出指令不足。分析时给出**范围 + 机制 + 证据**，例如“该 kernel 的主要等待来自连续依赖的 global load，HBM 吞吐尚未饱和”。[NVIDIA GPU Performance Background](https://docs.nvidia.com/deeplearning/performance/dl-performance-gpu-background/) · [Nsight Compute：Compute Triage](https://docs.nvidia.com/nsight-compute/ComputeTriage/)
+
+### B. warp 状态：驻留、就绪和发出不是一件事
+
+以下描述的是调度域中 warp 的状态与调度事件；一个 warp 发出一条指令后仍可能继续驻留，不是沿表从上到下只走一次就退出。
+
+| 状态或事件 | 准确含义 | 它与其他状态的关系 |
 | --- | --- | --- |
-| latency，延迟 | 从发起一个操作到所需结果可用的时间 | 不等于单位时间处理多少数据 |
-| throughput，吞吐 | 单位时间完成的工作量，如 FLOP/s、指令/s | 高吞吐不保证每次操作延迟都短 |
-| bandwidth，带宽 | 单位时间传输的字节数，常用 GB/s | 要说明是 HBM、L2、shared 还是 PCIe |
-| compute-bound，计算受限 | 在本篇的吞吐模型中，目标计算管线能力限制速度 | 代码有乘法，不代表已算力饱和 |
-| memory-bound，访存受限 | 广义指访存限制性能；Roofline 中通常特指带宽限制一侧 | 要继续区分带宽不足还是等待数据 |
-| bandwidth-bound，带宽受限 | 某层数据通路已接近其可持续吞吐，搬运量成为限制 | 增加等待中的线程不增加硬件带宽 |
-| latency-bound，延迟受限 | 独立工作不足，关键依赖的等待暴露出来 | 算术依赖也会造成延迟受限，不限于内存 |
-| resident / active warp，驻留 warp | 状态和资源已在 SM 中占有位置的 warp | 驻留不等于此刻能发指令 |
-| eligible warp，可发出 warp | 下一条指令已具备发出条件的 warp | 可发出也可能未被选中 |
-| issued，已发出 | 调度器选择并发出了某条指令 | 发出不等于结果已经完成 |
-| occupancy，占用率 | 驻留 warp 数相对该 SM 的 warp 容量上限的比例 | 不等于计算单元利用率、有效 lane 比例或 GPU 忙碌率 |
-| overlap，重叠 | 两件独立工作在时间上有交叠 | async 返回早，不自动产生重叠 |
-| tile / stage | tile 是数据分块；stage 是流水线中的缓冲与同步阶段 | 数据块大小与流水级数是两种参数 |
+| pending／尚未驻留（说明性用语） | block 还未获得执行所需资源，其 warp 尚未进入相应驻留池 | grid 很大不等于所有 warp 都同时 resident；这里不是特定 profiler 的状态枚举 |
+| resident / active，驻留 | warp 的执行状态及所需资源已分配在 SM 的相应调度域中 | 包含能发出与暂时不能发出的 warp；active 不等于正在做有效计算 |
+| eligible，可发出 | 下一条指令可用、依赖已满足，相关资源允许发出 | 是 resident 中此刻可供选择的候选；不保证马上被选中 |
+| selected / issued，被选择／已发出 | 调度器选择该 warp，并向相应通路发出指令 | 是本次发出事件，不等于操作完成，也不释放该 warp 的全部资源 |
+| not selected，未被选中 | 本来可发出，但本次选择了其他候选 | 通常说明还有可用候选；不应当作数据未就绪那种真 stall |
+| stalled，暂不能发出 | 因指令、数据依赖、同步或资源条件等不能推进下一条指令 | 它仍可能 resident；要继续看等待原因与其他 warp 是否填补空档 |
+| completed，执行完成（说明性用语） | 该 warp 已完成其工作 | warp 完成与整个 block 的全部资源可回收不是同一件事；block 生命周期仍要看其余参与者 |
 
-这些标签不是一套永远互斥的分类。例如一个访存受限 kernel 可以因为 HBM 带宽饱和而慢，也可以因为依赖链长、带宽尚未用满而慢。文献中的 memory-bound 有时采用狭义含义，阅读时要看它是否采用 Roofline 的吞吐假设。[NVIDIA GPU Performance Background](https://docs.nvidia.com/deeplearning/performance/dl-performance-gpu-background/)
+例如一个调度域有 `8 resident`，此刻其中 `2 eligible`，本次发出了其中 1 个：另一个是未选中的候选，其余 6 个需继续定位不能发出的原因。不能把 8、2、1 都叫“正在执行的 warp”。[Nsight Compute：Hardware Model 与 Scheduler Statistics](https://docs.nvidia.com/nsight-compute/ProfilingGuide/#hardware-model)
 
-本文配有 **8 张可编辑手绘图、5 个浏览器概念实验、4 份完整 CUDA 程序**。图中的队列是功能示意，不是特定 GPU 的精确电路图；模拟时间单位不对应真实 GPU 周期。资料核对日期：2026-11-02。本机与当前可访问的计算环境均无可用 CUDA GPU／`nvcc`，CUDA 源码尚未编译和 GPU 实跑；不提供虚构测速数据。
+### C. 相关指标：每个数字的单位和统计范围是什么
+
+| 指标／量 | 定义与单位 | 阅读时要核对的口径 |
+| --- | --- | --- |
+| latency，延迟 | 发起到所需结果可用的间隔，常用 ns、cycle | 哪一种操作、哪一层，是否包含排队；cycle 换算需频率 |
+| kernel duration，执行耗时 | 一次 kernel 的时间，常用 μs、ms | 是否含 host 开销；event 计时与 profiler 采集的条件是否一致 |
+| throughput，吞吐率 | 工作量 / 时间，如 FLOP/s、指令/s | 数据精度、指令种类、有效工作与实际执行工作是否一致 |
+| bandwidth，带宽 | 字节 / 时间，如 GB/s | HBM、L2、shared、PCIe 分别看；逻辑有效字节不等于真实事务字节 |
+| arithmetic intensity，算术强度 I | FLOP / 跨所选层的 byte | 哪一层的流量，是否计写回、缓存复用、尾块和额外搬运 |
+| theoretical occupancy，理论占用率 | 资源与启动配置允许的驻留 warp 数 / SM warp 上限 | 容量估计；看寄存器、shared、线程和 block 等限制 |
+| achieved occupancy，实际占用率 | 运行中观测的 active warp 相对上限的统计 | 时间与 SM 聚合口径、尾部和不均衡；不等于计算单元利用率 |
+| active / eligible warps，活跃／可发 warp 数 | 调度域中相应状态的数量，常见为每周期平均 | `sm` 与 `smsp` 范围不同，平均值可以是小数；不能与瞬时整数快照直接相减解释所有周期 |
+| issue activity，发出活跃程度 | 有指令发出的周期比例或具体发出率 | 具体指标的分母和单位；不能把它等同所有计算管线利用率 |
+| pipe utilization，管线利用率 | 相应通路活动或吞吐相对基准的比例 | 哪个通路、哪种峰值与统计窗口；不等于 occupancy |
+| cache hit rate，缓存命中率 | 按该指标定义统计的命中请求／sector 等比例 | 请求还是 sector、哪层缓存；高命中率仍可能受该层吞吐或延迟限制 |
+| stall samples，等待样本 | 采样到某类 warp 等待状态的数量或比例 | 是样本不是直接累计耗时；同周期其他 warp 可能在工作，不能简单相加当总停机时间 |
+
+`long scoreboard`、`short scoreboard`、`barrier`、`LG/MIO throttle` 是帮助定位等待机制的原因名称；相关采样指标统计这些现象。它们不是另一组与 compute-bound 并列的最终结论。第 9 节再将指标和优化动作对应起来。[Nsight Compute：Metrics 与 Warp Sampling](https://docs.nvidia.com/nsight-compute/ProfilingGuide/)
+
+后文出现的 **tile** 是数据分块，**slot/buffer** 是存放块的空间，**stage** 是流水线中的缓冲与同步阶段，**overlap** 是独立工作在时间上重叠。这些是实现机制，不放进 bound 或 warp 状态表。第 6、7 节会让同一组数据从原理图走到代码与实验。
+
+本文配有 **11 张可编辑手绘图、6 个浏览器概念实验、5 份完整 CUDA 程序**。图中的队列是功能示意，不是特定 GPU 的精确电路图；模拟时间单位不对应真实 GPU 周期。资料核对日期：2026-11-02。本机与当前可访问的计算环境均无可用 CUDA GPU／`nvcc`，CUDA 源码尚未编译和 GPU 实跑；不提供虚构测速数据。
 
 [下载全部源码与 Makefile](/downloads/cuda-overlap/cuda-overlap-demos.zip) · [编译、校验和计时说明](/downloads/cuda-overlap/README.txt)
 
 ## 1. 先放大一个 SM：谁保存状态，谁调度，谁计算
 
-### 1.1 看懂图里的部件
+### 1.1 先看组成：哪些部件属于子分区，哪些由整个 SM 共享
+
+下面先画**包含和共享关系**，下一张图再画指令流。外层绿框是一个 SM；内层是子分区，其中只把一个子分区展开。紫色是保存线程值的寄存器，橙色表示计算或依赖条件，蓝色表示调度／访存相关部件；连线只突出部分主要联系，不是完整端口布线。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-overlap/09-sm-components.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/09-sm-components.svg" alt="一个 SM 内的多个子分区，每个子分区包含 warp 状态、调度、寄存器与执行资源，共享 SM 级 L1 和 shared" loading="lazy"></a>
+<figcaption>SM 组成图：先读包含关系，再看部件如何相互提供数据、指令和就绪条件。 <a href="/images/cuda-overlap/09-sm-components.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/09-sm-components.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+| 组件或层级 | 保存什么／做什么 | 依赖哪些其他部件 |
+| --- | --- | --- |
+| SM 子分区（SMSP） | 一个局部调度与执行域，管理一组驻留 warp | block 已获准在这个 SM 驻留；warp 的调度受本域资源约束 |
+| warp 执行状态与指令获取 | 记录执行位置、活跃线程等，提供下一条候选指令 | 需要取到指令并满足解码等条件；它不保存全部数组数据 |
+| warp scheduler／dispatch | 选择满足条件的指令，发往适合的执行通路 | 候选指令可用、依赖解除、目标通路允许接收 |
+| register file，寄存器文件 | 保存线程操作数、地址值、累加器等活跃值 | 算术和地址计算读取它；计算或 load 的结果使目标值就绪 |
+| scoreboard 等依赖控制 | 跟踪未完成操作与相关依赖 | 根据操作完成情况更新；向调度控制提供是否可推进的条件 |
+| FP／INT／SFU／Tensor 等计算资源 | 按指令类型执行浮点、整数、特殊函数或张量运算 | 需要输入操作数和通路容量；各类型不能随意互换 |
+| load/store 单元与访存通路 | 形成地址、组织请求，执行 load/store | 地址与 store 数据就绪、请求入口和下游容量可用；load 返回又解除计算依赖 |
+| SM 级 L1／shared 存储 | 缓存数据或存放程序管理的 shared 对象 | 接收各子分区的相关访问；物理共享不代表所有 block 的 shared 数组互相可见 |
+| SM 外互连、L2、内存控制器 | 为需要下一级服务的访问提供数据路径 | 缓存策略、命中、请求竞争和内存容量；它们不属于某个线程私有资源 |
+
+可以把依赖记成四种关系：**包含**（SM 有子分区）、**资源分配**（线程用寄存器、block 用 shared）、**数据流**（load 返回值供 FMA 使用）、**调度条件**（值就绪且目标通路可接收）。一个 block 的线程在同一个 SM 上，并不意味着它的所有 warp 必须归同一个子分区调度；不要把 block 框与 SMSP 框画成一一对应。
+
+这里采用 [Nsight Compute 通用 SM 硬件模型](https://docs.nvidia.com/nsight-compute/ProfilingGuide/#hardware-model) 的分组方式。具体功能单元数量、共享方式与通路随架构变化；图中的四个子分区不是要求程序员固定写四个 warp。
+
+### 1.2 再看这些部件如何工作
 
 <strong>SM（Streaming Multiprocessor，流式多处理器）</strong> 承接 block 的执行。block 获得驻留资源之后，其 warp 由 SM 内部调度。理解调度时，需要把三类东西分开：**线程的状态、指令的控制、真正执行工作的通路**。
 
@@ -60,7 +119,7 @@ date: 2026-11-02 13:35:00
 
 现代 NVIDIA SM 常按子分区（SMSP）组织调度器、寄存器和执行资源，多个子分区共享 SM 级 L1/shared 等资源。Nsight Compute 的通用硬件图以四个子分区示意；本篇只放大一个调度域的工作方式，不把它画成“一个 SM 只有一个调度器”，也不假设一个调度器可任意挑选所有 SM 中的 warp。具体数量与执行通路应核对目标架构。[Nsight Compute：Hardware Model](https://docs.nvidia.com/nsight-compute/ProfilingGuide/#hardware-model)
 
-### 1.2 一条 load → FMA → store 怎样走完
+### 1.3 一条 load → FMA → store 怎样走完
 
 用每线程的一小段工作跟图走：
 
@@ -84,7 +143,7 @@ output[i] = y;
 5. A 的 FMA 发出后还需等待计算结果可用。依赖 `y` 的 store 不能提前把未完成的结果写出；同时其他独立指令可能继续推进。
 6. store 被接收以后还要经过写入路径。它不向普通目标寄存器返回一个计算值；不能把“store 已发出”当作其他线程已经按程序要求看见它，跨线程共享结果仍需正确的同步和内存顺序。
 
-### 1.3 计算管线和访存管线如何排队
+### 1.4 计算管线和访存管线如何排队
 
 **管线有延迟，也有接收间隔。** 假设一个教学计算管线从进入到完成需要 4 个时间单位，但每单位可以接收一条独立指令：第一条在 `t=0` 进入、`t=4` 完成，第二条可在 `t=1` 进入。它们能重叠，因为并非等第一条完全离开才能接收下一条。但若第二条依赖第一条的结果，它仍要等到结果就绪。这是吞吐和延迟的区别，不是实际 FP32 指令的固定参数。
 
@@ -298,6 +357,38 @@ __syncthreads();
 
 增大 tile 不总更快：shared、寄存器和线程数都可能改变 occupancy，还要考虑访问布局。本 demo 没有异步搬运；因此 **tiling 本身并不等于 overlap**。[CUDA Best Practices：Shared Memory in Matrix Multiplication](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#shared-memory-in-matrix-multiplication-c-ab)
 
+#### 从图上的 tile 走到 `matmul_tiled` 的线程索引
+
+现在用小矩阵手算同一套实现规则。为方便展示，取 `M=N=K=4,T=2`；完整 CUDA demo 仍使用 `TILE=16`，这里只缩小数字，不改变算法。输入为：
+
+```text
+A = [[ 1,  2,  3,  4],    B = [[1, 0, 1, 0],
+     [ 5,  6,  7,  8],         [0, 1, 0, 1],
+     [ 9, 10, 11, 12],         [1, 1, 1, 1],
+     [13, 14, 15, 16]]         [2, 0, 0, 2]]
+```
+
+选 C 右上角的输出 tile：`blockIdx=(x=1,y=0)`。跟踪其中 `threadIdx=(x=0,y=1)`，它负责 `row=0*2+1=1`、`col=1*2+0=2`，即 `C[1,2]`。注意二维编号明确按 x、y 解释，矩阵下标按 row、col 解释。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-overlap/10-tiling-walkthrough.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/10-tiling-walkthrough.svg" alt="用 TILE 等于2的例子将 C[1,2] 的计算分成两轮输入 tile，第一轮增加5，第二轮增加7" loading="lazy"></a>
+<figcaption>图 6A：同一线程的 sum 跨轮保留；shared 中的 A/B tile 在每轮结束后被安全替换。 <a href="/images/cuda-overlap/10-tiling-walkthrough.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/10-tiling-walkthrough.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+| 图中的一步 | `tiling.cu` 对应代码 | 跟踪的线程实际做什么 |
+| --- | --- | --- |
+| 找到输出格子 | `row = blockIdx.y*TILE + threadIdx.y`，`col = blockIdx.x*TILE + threadIdx.x` | 固定负责 `C[1,2]`，不是每轮换一个输出 |
+| 选择本轮输入 | `for (base=0; base<k; base+=TILE)` | 先看 K 的 0、1 项，再看 2、3 项 |
+| 合作装入 shared | `at[ty][tx]=a[row*k+base+tx]`；`bt[ty][tx]=b[(base+ty)*n+col]`（完整代码含边界检查） | 本线程第一轮搬 `A[1,0]=5` 和 `B[1,2]=0`；其他线程搬其余值 |
+| 第一道屏障 | 填充后的 `__syncthreads()` | 等所有 tile 元素可用，才读其他线程装入的值 |
+| 计算本轮贡献 | `sum += at[ty][p]*bt[p][tx]` | 第一轮 `5*1+6*0=5`；第二轮 `7*1+8*0=7` |
+| 第二道屏障 | 内积后的 `__syncthreads()` | 旧数据无人再读，下一轮才能覆盖它 |
+| 写回结果 | K 循环后 `c[row*n+col]=sum` | 最终 `C[1,2]=12`；只写一次最终累加值 |
+
+<div class="cuda-demo" data-overlap-demo="tiling"><p>启用 JavaScript 按轮推进 tile，观察输入块和 C[1,2] 的累加值。</p></div>
+
+**怎么观察：** 点“下一轮 K 分块”，应看到 `base: 0→2`、`sum: 5→12`。这个小实验解释数据复用与屏障的位置，不测速度。随后运行 `./tiling 17 19 23`，检查两种实现的 `PASS`，理解同样规则如何通过填零处理尾块；再用较大输入比较耗时。图中手算矩阵与程序默认生成矩阵不同，数值 12 只属于本手算例子。
+
 ### 6.3 向量化：改变单个线程的一次访问宽度
 
 `float4` 表示连续四个 float，尺寸 16 byte。在编译器生成相应宽访存指令时，可以用更少的 load/store 指令完成同样字节量。它不会自动减少需要读取的数据，也不会自动把标量 FP32 算术变成 Tensor Core 运算。
@@ -316,7 +407,7 @@ if (tid == 0)
 
 ### 6.4 完整源码与运行方式
 
-下载 ZIP 后解压，确保这些文件在同一目录。需要 NVIDIA GPU、匹配驱动、支持目标架构的 CUDA Toolkit、C++17 编译支持和 `make`。下面 `sm_80` 是示例编译目标；Hopper 可选 `sm_90`，其他硬件请使用其 Toolkit 支持的正确目标。
+下载 ZIP 后解压，确保这些文件在同一目录。需要 NVIDIA GPU、匹配驱动、支持目标架构的 CUDA Toolkit、C++17 编译支持和 `make`。下面 `sm_80` 是示例编译目标；Hopper 可选 `sm_90`，其他硬件请使用其 Toolkit 支持的正确目标。下载包还包含第 7.4 节的 `overlap.cu`，因此整包编译需要 CC 8.0+ 目标；只运行本节与 occupancy 示例时可以单独编译对应文件。
 
 ```bash
 make ARCH=sm_80
@@ -627,6 +718,135 @@ for k in [0, N):
 ```
 
 `producer_acquire/commit` 管理提交端，`consumer_wait/release` 管理消费端。线程范围 pipeline 的 wait 不能自动替其他线程证明完成；跨线程读写需要匹配的协作和同步协议。warp 分歧还可能影响 commit/wait 的批次行为，应按所选 API 的规则保持相关操作的收敛。[CUDA Pipelines](https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/pipelines.html) · [Advanced Kernel Programming：Asynchronous Execution Features](https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/advanced-kernel-programming.html)
+
+### 7.4 对应到完整 `overlap.cu`：不只停在伪代码
+
+[下载 overlap.cu](/downloads/cuda-overlap/overlap.cu)。这个程序比较同步搬运与 `cp.async` 双缓冲的完整流程；它使用 CUDA C primitives（`<cuda_pipeline.h>`），要求 **CC 8.0+ 与支持目标 GPU 的 CUDA Toolkit**。它没有调用 TMA，TMA 的 descriptor／transaction barrier 留在第 8 节单独解释。
+
+为把搬运协议看清楚，计算任务采用“分块读取后进行若干轮 FMA”，不是再写一个复杂 GEMM。每块 128 个线程，每线程负责一个 `float4`，因此一个输入 tile 是 `128*16=2048 byte`。两个 shared slot 共占 4096 byte。线程读取本 tile 中下一个线程搬来的 float4，因此必须说明**跨线程完成可见性**；同步版与异步版计算、输出和两个 slot 的逻辑分配相同。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-overlap/11-overlap-slots.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/11-overlap-slots.svg" alt="将 overlap.cu 的预提交、下一块提交、当前块等待计算及释放对应到两个 shared slot" loading="lazy"></a>
+<figcaption>图 7A：按行看循环阶段，按列看同一块 shared 空间何时被覆盖。 <a href="/images/cuda-overlap/11-overlap-slots.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/11-overlap-slots.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+先跟踪 `k=0`：循环前提交 tile 0 到 slot 0；进入循环又提交 tile 1 到 slot 1；等 tile 0 完成后计算它，此时 tile 1 的搬运允许继续。第二道块内屏障保证 tile 0 已无人使用，下一轮才能让 tile 2 覆盖 slot 0。异步并没有移除数据依赖，只把**下一块**不依赖当前结果的工作提前。
+
+| 协议目的 | 实际语句 | 对应的图与注意点 |
+| --- | --- | --- |
+| 预填第一块 | `__pipeline_memcpy_async(...)`，随后 `__pipeline_commit()` | 图第一行；提交 tile 0 后还不能直接读取 |
+| 提前填下一块 | 拷贝到 `slot[(k+1)%2][t]` 并 commit | 图中 `k=0` 搬 tile 1、`k=1` 搬 tile 2；必须保证目标 slot 的旧消费者已读完 |
+| 当前块完成，下一块可继续 | 有下一块时 `__pipeline_wait_prior(1)` | 等待除最新一批外的已提交批次；不是等待“编号为 1 的 tile”，也不是任意等一轮 |
+| 排空末尾 | 没有下一块时 `__pipeline_wait_prior(0)` | 最后一批必须完成；`tiles=1` 时同样走此分支 |
+| 允许跨线程读 | wait 后 `__syncthreads()` | 每线程先等自己的拷贝，再集合，才能读邻居搬来的值；这道屏障不取代异步 wait |
+| 安全复用 | 计算之后再 `__syncthreads()` | 所有消费者已用完当前 slot，未来循环才能覆盖 |
+
+这些 primitives 的 commit/wait 批次跟踪有特定的线程／warp 语义；代码中的循环和分支对整个 block 一致，不让不同线程自行跳过阶段。16-byte 搬运的两端都满足 float4 对齐，所有 tile 完整分配。本例没有“不足一个 tile 的尾部”；命令行指定每块的完整 tile 数，禁止零或负数。[CUDA：异步拷贝与预取协议](https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/async-copies.html)
+
+```bash
+make overlap ARCH=sm_80  # 根据 GPU 与 Toolkit 改为支持的目标
+./overlap 1 16          # 只有一块：检查初始填充和最终排空
+./overlap 2 16          # 两块：看到两个 slot 都参与
+./overlap 8 1           # 计算工作少，未必能遮住搬运
+./overlap 8 64          # 增加独立计算窗口；仍需实测判断收益
+compute-sanitizer --tool racecheck ./overlap 3 16
+```
+
+参数依次是 `tiles_per_block` 和 `rounds`。CPU 按相同的块内邻居读取和 FMA 规则生成参考，两个版本必须先通过校验才计时。比较同一组参数的两个版本；不要把 `rounds=1` 与 `rounds=64` 的绝对耗时当同工作量加速比。计时差反映整个实现的差异，还包括指令、屏障等成本；应检查编译后的 SASS 和 profiler，不能只凭源码含 async 就宣称已成功重叠。
+
+当前仍没有 `nvcc`／GPU，本文件是完整待编译验证源码，尚无 GPU 正确性或性能实测。网页时间线是独立的教学模型，不是这个程序的 trace。
+
+<details>
+<summary>展开完整源码：overlap.cu</summary>
+
+```cpp
+#include "common.cuh"
+#include <cuda_pipeline.h>
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+#error "Build overlap.cu for compute capability 8.0 or newer."
+#endif
+constexpr int THREADS = 128;
+__host__ __device__ float transform(float x, int rounds) {
+    for (int r = 0; r < rounds; ++r) x = fmaf(x, 1.0001f, 0.0001f);
+    return x;
+}
+__host__ __device__ float4 compute(float4 x, int rounds) {
+    return make_float4(transform(x.x, rounds), transform(x.y, rounds),
+                       transform(x.z, rounds), transform(x.w, rounds));
+}
+// The baseline uses the same number of shared slots, so resource allocation is comparable.
+__global__ void serial_tiles(const float4* in, float4* out, int tiles, int rounds) {
+    __shared__ float4 slot[2][THREADS];
+    int t = threadIdx.x;
+    for (int k = 0; k < tiles; ++k) {
+        int base = (blockIdx.x * tiles + k) * THREADS;
+        slot[k % 2][t] = in[base + t];
+        __syncthreads();
+        out[base + t] = compute(slot[k % 2][(t + 1) % THREADS], rounds);
+        __syncthreads();
+    }
+}
+__global__ void pipelined_tiles(const float4* in, float4* out, int tiles, int rounds) {
+    __shared__ float4 slot[2][THREADS];
+    int t = threadIdx.x;
+    int first = blockIdx.x * tiles * THREADS;
+    __pipeline_memcpy_async(&slot[0][t], &in[first + t], sizeof(float4));
+    __pipeline_commit(); // Submit tile 0 before entering the loop.
+    for (int k = 0; k < tiles; ++k) {
+        int base = (blockIdx.x * tiles + k) * THREADS;
+        if (k + 1 < tiles) {
+            __pipeline_memcpy_async(&slot[(k + 1) % 2][t], &in[base + THREADS + t], sizeof(float4));
+            __pipeline_commit();
+            __pipeline_wait_prior(1); // Current tile complete; newest tile may still be in flight.
+        } else {
+            __pipeline_wait_prior(0); // Drain the final tile, including the tiles=1 case.
+        }
+        __syncthreads(); // Every thread has waited for its copies; allow cross-thread reads.
+        out[base + t] = compute(slot[k % 2][(t + 1) % THREADS], rounds);
+        __syncthreads(); // All consumers finished before a future iteration reuses this slot.
+    }
+}
+int main(int argc, char** argv) {
+    if (argc != 1 && argc != 3) { std::fprintf(stderr, "Usage: overlap [tiles_per_block rounds]\n"); return 1; }
+    const int tiles = argc == 3 ? argument(argv[1], 64) : 8;
+    const int rounds = argc == 3 ? argument(argv[2], 256) : 16;
+    auto prop = device();
+    if (prop.major < 8) { std::fprintf(stderr, "Requires CC 8.0+ for this async-copy example.\n"); return 1; }
+    const int blocks = prop.multiProcessorCount * 2;
+    const size_t count = static_cast<size_t>(blocks) * tiles * THREADS;
+    std::vector<float4> input(count), output(count);
+    std::vector<float> actual(count * 4), expected(count * 4);
+    for (size_t i = 0; i < count; ++i) {
+        float x = static_cast<float>(i % 97) / 128.0f;
+        input[i] = make_float4(x, x + .25f, x + .5f, x + .75f);
+    }
+    for (size_t i = 0; i < count; ++i) {
+        size_t neighbor = (i / THREADS) * THREADS + (i + 1) % THREADS;
+        float4 y = compute(input[neighbor], rounds);
+        expected[4*i] = y.x; expected[4*i+1] = y.y; expected[4*i+2] = y.z; expected[4*i+3] = y.w;
+    }
+    DeviceBuffer<float4> din(count), dout(count);
+    CHECK(cudaMemcpy(din.data, input.data(), count * sizeof(float4), cudaMemcpyHostToDevice));
+    for (int variant = 0; variant < 2; ++variant) {
+        CHECK(cudaMemset(dout.data, 0xff, count * sizeof(float4)));
+        auto launch = [&] {
+            if (variant == 0) serial_tiles<<<blocks, THREADS>>>(din.data, dout.data, tiles, rounds);
+            else pipelined_tiles<<<blocks, THREADS>>>(din.data, dout.data, tiles, rounds);
+        };
+        launch(); CHECK(cudaGetLastError());
+        CHECK(cudaMemcpy(output.data(), dout.data, count * sizeof(float4), cudaMemcpyDeviceToHost));
+        for (size_t i = 0; i < count; ++i) {
+            actual[4*i] = output[i].x; actual[4*i+1] = output[i].y;
+            actual[4*i+2] = output[i].z; actual[4*i+3] = output[i].w;
+        }
+        validate(actual, expected);
+        std::printf("%s: %.6f ms; tiles/block=%d rounds=%d\n", variant ? "async_double_buffer" : "serial", measure(launch), tiles, rounds);
+    }
+    std::puts("Timing compares whole implementations, not isolated overlap. Check SASS/profiling; speedup is not guaranteed.");
+}
+```
+
+</details>
 
 ## 8. TMA：把一块 tensor 的搬运交给专门机制
 
