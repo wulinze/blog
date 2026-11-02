@@ -1,0 +1,631 @@
+{
+  "4": {
+    "chapter": 4,
+    "slug": "cuda-vector-atomic",
+    "terms": "合并访问|同一条 warp 指令的地址合成 sector 请求；不是把多个循环合成一条指令\n向量化|单线程一次读写多个相邻元素，例如 float4 的 16 字节\n原子操作|对一个地址执行不可被其他更新拆开的读改写\n热点|许多线程更新同一个 bin，使更新出现竞争",
+    "intro": "逐元素加法很适合认识地址，直方图很适合认识竞争。它们都只做少量算术，但慢的原因不相同：跨距读扩大请求流量；标量循环可能增加指令；热点原子则让多个线程争同一个地址。先把三件事分开，才知道向量化能解决哪一件。",
+    "sections": "### 从 lane 地址数 sector\n给 32 个 lane 各读一个 float32。地址为 `base + 4*lane*stride`，先假设 base 按 32 字节对齐。stride=1 覆盖 4 个 sector；stride=2 覆盖 8 个；stride=8 覆盖 32 个。每次仍只要求 128 字节有效数据。这里统计的是一次请求的地址覆盖，不是断言这些字节全从 DRAM 搬来；缓存命中会改变下层流量。\n\n### 宽访问还需要对齐和尾部\nfloat4 把线程的四个相邻 float 作为一个 16 字节对象。起始地址必须满足该类型对齐，四个元素必须都有效，否则退回标量尾部。改变线程映射后，应重新枚举整个 warp 的地址。宽 load 不会自动把散乱地址变连续；编译器是否生成 128-bit 指令也要检查实际输出。\n\n### 直方图先局部合并，再全局合并\n输入整数 x，输出 `hist[b] = count(x==b)`。直接 atomicAdd 正确，但一个热点 bin 会收到大量同址请求。block 私有 shared histogram 先把更新聚合，最后把每个 bin 的局部计数原子加到全局。它增加清零、同步、shared 容量和最后合并的成本；当 bin 多、数据少时未必更快。每次运行前都要清零输出，计时必须包括所选方案必要的清零与合并。",
+    "formula": "S = count(unique(floor(address / 32)))\nrequest_efficiency = useful_bytes / (32*S)\n32 lanes × 4 bytes = 128 useful bytes\nstride=1: 128/(32*4)=1; stride=8: 128/(32*32)=0.125",
+    "flow": [
+      "lane → 元素地址",
+      "地址 → 32B sector",
+      "连续 / 跨距请求对照",
+      "输入 → 局部 histogram",
+      "全局合并 → 总数校验"
+    ],
+    "pitfall": "4 sector 的理想值只适用于这里的 32 个活跃 lane、每 lane 4 字节且对齐的访问。不要把 float4 的 16 sector 直接判为合并失败。原子吞吐高低必须结合热点分布；不能拿一组均匀随机输入代替全部应用。",
+    "hint": "Triton：先用 tl.arange 和 mask 写 stride copy，再用整数 atomic_add 做 histogram。TileLang：先写同样的全局原子基线，再引入 shared 私有计数。输入 [0,1,1,3,3,3] 的输出应为 [1,2,0,3]；均匀与全零两类输入都检查 sum(hist)==N。"
+  },
+  "5": {
+    "chapter": 5,
+    "slug": "cuda-softmax",
+    "terms": "logit|归一化前的实数分数\n稳定 softmax|先减行最大值再求指数和\nonline 状态|已处理部分的最大值 m 和相对指数和 l\nmask|把不参与概率分布的位置排除，不能简单当成分数 0",
+    "intro": "Softmax 的难点不是 exp 的写法，而是整行共享一个分母。先解决大分数溢出，再解决整行装不进一个 tile 的问题。在线状态能跨 tile 更新，但最终输出每个概率仍需要保留输入或重新读取输入。",
+    "sections": "### 为什么减最大值不改变概率\n分子与分母同时乘 exp(-m)，比值不变。令 m 为最大 logit 后，所有指数的自变量不大于 0。比如 [1000,1001,1002] 直接求 exp 会溢出，而减去 1002 后变为 [-2,-1,0]，概率约 [0.0900,0.2447,0.6652]。\n\n### 在线更新要重标定旧分母\n旧状态的 l 以旧 m 为基准，新块最大值若更大，旧指数和也要乘 `exp(m_old-m_new)`。新块按 m_new 求指数和后相加。空状态单独处理为 m=-inf、l=0，避免计算 -inf-(-inf)。合并顺序在实数代数中等价，浮点结果允许有舍入差异。\n\n### 两次归约不等于两次 DRAM 读取\n短行可以先把全部输入载入寄存器，再求 max、sum、写结果，多个归约并不意味着重新访问 global。长行的在线第一遍只求状态，第二遍才用最终状态写概率。是否划算要看寄存器、行长度、行数和实际流量，而不是只数数学扫描次数。",
+    "formula": "m_new = max(m_old, max(block))\nalpha = exp(m_old-m_new)\nl_new = alpha*l_old + sum(exp(x-m_new) for x in block)\np_i = exp(x_i-m_final)/l_final\n例：[1,2] 后接 [3]，旧 m=2，旧 l=1+exp(-1)",
+    "flow": [
+      "读一块 logits",
+      "求块最大值",
+      "更新 m，缩放旧 l",
+      "累加新指数和",
+      "最终状态 → 概率输出"
+    ],
+    "pitfall": "本 demo 约定全 mask 行输出全零，普通有效行必须有限且行和约为 1。该约定需要接口显式说明，不能让全 -inf 行自然产生 NaN。",
+    "hint": "Triton 用 tl.max/tl.sum 做单行版本，尾部载入 -inf；TileLang 用二维 fragment 和 dim=1 归约。先验证宽度 1、17、127、129，再把极大偏置加到输入上，检查概率不变。扩展实现长行两遍 online，并把第二遍成本算入时间。"
+  },
+  "6": {
+    "chapter": 6,
+    "slug": "cuda-lse-merge",
+    "terms": "LSE|log(sum(exp(scores)))，这里使用自然对数\n归一化输出 O|每段独立 softmax 后对 V 的加权平均\n充分状态|合并只需要 O 和 LSE；不表示可以恢复原始所有分数\n空段|没有有效 key，约定 LSE=-inf、O=0",
+    "intro": "把 KV 切给多个任务后，每段都有自己的 softmax 分母。直接相加或平均段输出都不对。LSE 保存每段未归一化概率质量的对数，让合并变成有依据的加权平均。",
+    "sections": "### 从分母推导权重\n设两段指数和为 Z_A、Z_B，段输出分别为 O_A、O_B。总输出的分子是 Z_A*O_A+Z_B*O_B，分母是 Z_A+Z_B。因此权重取决于概率质量，不取决于段长度，也不是固定二分之一。\n\n### 在对数域避免溢出\n令 c=max(L_A,L_B)，计算 a=exp(L_A-c)、b=exp(L_B-c)。用 a、b 做归一化权重，新的 LSE 为 c+log(a+b)。如果只有一边为空，直接返回另一边；两边都空则返回约定空状态。这里不支持把真实 +inf logit 当普通有限输入处理。\n\n### 合并范围必须是 KV 子集\n每段必须包含完整的 query-key 点积，并在不同 key 子集上形成状态。D 维分块只是把同一个点积拆成若干部分，不能对每个 D chunk 分别 softmax 后用 LSE 合并。多段可树形合并，但要独立验证浮点误差。",
+    "formula": "O = (a*O_A+b*O_B)/(a+b)\nL = c + log(a+b), c=max(L_A,L_B)\n例：Z_A=2, O_A=10; Z_B=6, O_B=2\nO=(2*10+6*2)/8=4，简单平均则错误地得到 6",
+    "flow": [
+      "KV 按 key 分段",
+      "每段完整 QK + softmax",
+      "输出 O 与 LSE",
+      "稳定指数权重",
+      "加权合并 O / 合并 LSE"
+    ],
+    "pitfall": "LSE 不是 (m,l) 的可逆编码。同一个 LSE 可对应不同的 m 和 l；它对合并足够，但不保留全部状态细节。使用 exp2 的实现要先统一对数底。",
+    "hint": "Triton 与 TileLang 都实现 merge(O_A,L_A,O_B,L_B)。每行一组 LSE，沿 D 广播权重。测试空/非空、双空、LSE 相差 1000、三个不等长段；参考从原始 scores/V 一次计算，不能只拿同一合并函数作参考。"
+  },
+  "7": {
+    "chapter": 7,
+    "slug": "cuda-normalization",
+    "terms": "均值 mu|一行 N 个元素的算术平均\n总体方差 var|sum((x-mu)^2)/N，不除以 N-1\nRMS|平方均值开根，不先减均值\nepsilon|放在根号内的稳定项，需和参考一致",
+    "intro": "RMSNorm 和 LayerNorm 都是“行统计 → 广播 → 逐元素变换”。相同的是执行骨架，不同的是统计量。把这一点弄清后，Softmax 的行归约经验就可以迁移到归一化算子。",
+    "sections": "### RMSNorm 保留均值方向\nRMSNorm 用平方均值缩放 x，不进行中心化。输入 [1,2,3,4] 的平方均值是 7.5。若 gamma 为 1，eps 忽略，输出为 x/sqrt(7.5)。给所有输入加同一个偏置，RMSNorm 输出一般会变。\n\n### LayerNorm 先中心化\n同一个例子均值 2.5，方差 1.25，中心化向量 [-1.5,-0.5,0.5,1.5]。真实接口中 gamma 和 beta 通常是长度 N 的通道向量，而不是一个共享标量。输出的零均值性质只适用于应用 gamma/beta 之前。\n\n### 一遍公式可能损失小方差\n数学上 `E[x²]-E[x]²` 等于方差，但两项都很大且接近时，浮点相减会丢有效位。两遍中心化方差或 Welford 更适合检查“大偏置、小波动”。不要仅靠 max(var,0) 掩盖数值问题。短行把输入保留在寄存器，可避免两遍统计对应两遍 global 读。",
+    "formula": "RMSNorm_i = x_i / sqrt(sum(x²)/N + eps) * gamma_i\nLayerNorm_i = (x_i-mu)/sqrt(var+eps)*gamma_i+beta_i\nmu=2.5, var=1.25 for x=[1,2,3,4]\n所有统计使用实际有效 N，而不是补齐后的 tile 宽度",
+    "flow": [
+      "读取一行与有效 mask",
+      "求均值 / 平方均值",
+      "LN 再求中心化方差",
+      "广播倒数平方根",
+      "gamma / beta → 写回"
+    ],
+    "pitfall": "补零可以用于 sum，但方差中无效位置不能参与 (0-mu)²；归约前必须再屏蔽。eps 既不是根号外相加，也不是每个元素平方后单独相加再除错次数。",
+    "hint": "两种语言分别实现 RMSNorm 和两遍 LayerNorm，统计使用 float32。输入包含常数行、全零、小方差和 129 长度；gamma/beta 使用非均匀值，避免测试漏掉广播维度错误。扩展对照 Welford。"
+  },
+  "8": {
+    "chapter": 8,
+    "slug": "cuda-rope-transpose",
+    "terms": "RoPE|对一对特征按位置角度做二维旋转\n配对格式|相邻 (2i,2i+1) 或半区 (i,i+D/2)，不可混用\n转置|逻辑坐标 (r,c) 变为 (c,r)\nbank conflict|同一 shared 请求访问同 bank 不同字的竞争，区别于同地址广播",
+    "intro": "RoPE 改变数值，转置改变位置。两者放在一起学习，是为了训练“逻辑坐标 → 物理地址”的思维：数学公式正确还不够，配对、stride、bank 和尾部都属于正确性的一部分。",
+    "sections": "### 旋转的两个不变量\n一对 (x,y) 经过角度 theta 后，x′=x*cos(theta)-y*sin(theta)，y′=x*sin(theta)+y*cos(theta)。旋转保持平方范数；两个位置 p、q 的旋转内积只取决于角度差。每一对特征的频率不同，实际角度通常是 position*frequency，不能让所有通道共用一个频率。\n\n### global 两端都要连续\n按行读矩阵并直接按转置位置写，通常一端连续、一端跨距。shared tile 中转把“读入时的线程分工”和“写出时的线程分工”解开：合并载入、block 屏障、换坐标读取 shared、合并写出。矩形尾块对读与写分别检查边界。\n\n### padding 改变 bank 不是改变数学\n在简化 32-bank、每 bank 4 字节的 float 模型中，列读取 tile[lane][c]：行跨度 32 时各 lane 落到同 bank；跨度 33 时 bank=(33*lane+c)%32，遍历不同 bank。真实宽向量与 ldmatrix 请求需按其事务分组重新分析，不能套用这个标量模型。",
+    "formula": "x′²+y′² = x²+y²\nbank = floor(byte_address/4) mod 32\nfloat tile[32][32]: bank(lane,c)=c\nfloat tile[32][33]: bank(lane,c)=(lane+c)%32\n例：(1,0) 旋转 pi/2 得到 (0,1)",
+    "flow": [
+      "特征配对 / 矩阵坐标",
+      "RoPE 读一对并旋转",
+      "转置合并读 → shared",
+      "屏障 → 换线程读取",
+      "合并写出并检查尾部"
+    ],
+    "pitfall": "padding 不总是最优；额外 shared 可能降低可驻留 CTA。旋转的相邻配对和半区配对都合理，但必须匹配模型权重的约定。",
+    "hint": "Triton 实现两种 RoPE 配对和带 mask 转置；TileLang 实现 shared 中转，比较 stride 32/33。先检查范数，再检查相对位置点积；转置用 17×35，做两次必须回到原矩阵。"
+  },
+  "9": {
+    "chapter": 9,
+    "slug": "cuda-gemv",
+    "terms": "GEMV|A[M,K] 乘 x[K] 得到 y[M]\nwarp-per-row|一个 warp 的 lane 沿 K 分工\n短 K 子组|一个 warp 分成几个独立行组\n任务数|输出行划分形成的 CTA 数，决定能否覆盖设备",
+    "intro": "GEMV 是理解 decode 小批量投影的入口。矩阵每个元素通常只贡献一个输出乘加，向量 x 在多行间复用。与 GEMM 相比，输出列方向的复用消失，因此先关注矩阵流量和任务划分。",
+    "sections": "### 从点积到线程分工\nlane l 处理 k=l、l+32、l+64…，先保留自己的部分和，再 warp reduce。只有指定 lane 写出该行。K=16 时可以把一个 warp 分成两组 16 lane，各算一行；归约必须限制在子组，不能把两行相加。\n\n### 向量化减少装载指令\n每 lane 处理连续四个元素时，一轮覆盖 128 个 K 元素。尾部和基址对齐仍要验证。K 很长时，每线程局部累加形成依赖链，可尝试多个独立累加器，但这会增加寄存器。\n\n### 小形状不一定撞带宽墙\n粗略算术强度很低，不代表每次调用都带宽饱和。M 很小导致可调度任务少；K 很短时启动和归约成本占比大；x 或 A 在缓存时 DRAM 字节又不同。比较一行与多行 program 时同时记录任务数、总时间和矩阵有效字节。",
+    "formula": "y_m = sum(A[m,k]*x[k], k=0..K-1)\nF ≈ 2*M*K\nlogical_bytes = 4*(M*K+K+M), float32\nM,K 很大且 x 充分复用：AI ≈ 0.5 FLOP/B\nA=[[1,2,3],[4,5,6]], x=[1,0,-1] → y=[-2,-2]",
+    "flow": [
+      "选输出行 / 行组",
+      "lane 沿 K 连续读取",
+      "线程局部乘加",
+      "组内归约且隔离行",
+      "唯一 owner 写 y"
+    ],
+    "pitfall": "AI 的“x 只读一次”是逻辑或理想复用口径；每个 CTA 的请求可能重复。不要因此认定 kernel 内优化向量复用没有意义。",
+    "hint": "Triton 写一行与四行 program；TileLang 改 row×K 的 fragment 分工。测 M=1/17/1024，K=16/33/1025；最后一行和 K 尾部必须正确。先用 FP64 参考，再比较不同划分。"
+  },
+  "10": {
+    "chapter": 10,
+    "slug": "cuda-gemm-tiling",
+    "terms": "GEMM|A[M,K] @ B[K,N] → C[M,N]，@ 表示矩阵乘法\nblock tile|一个 CTA 的输出 BM×BN\nthread tile|一个线程持有的 TM×TN 累加器\nBK|一次从 K 维搬运的宽度",
+    "intro": "GEMM 比 GEMV 多了一个可以复用的输出维度。A 的一个元素服务多个输出列，B 的一个元素服务多个输出行。tiling 的目的就是把这份复用放进 shared 和寄存器，而不是反复请求同一数据。",
+    "sections": "### Block tile 让 global 数据复用\n每轮加载 BM×BK 的 A 和 BK×BN 的 B，产生 BM×BN×BK 次乘加。写入 shared 后要等全部写者完成，计算完成后又要保证没有读者还使用旧 tile，才可覆盖下一轮。这是两个不同的生命周期边界。\n\n### Thread tile 把复用推进寄存器\n一个线程计算 TM×TN 个输出，读 TM 个 A 和 TN 个 B 后做 TM*TN 次乘加。比每次只算一个输出更能摊薄 shared load，但累加器数量乘法增长。4×4 thread tile 至少有 16 个标量累加值，尚未计算地址与操作数寄存器。\n\n### BK 不直接提高单轮理想复用比\n单轮计算量和 A/B 搬运量都随 BK 增长，所以二者比值中 BK 相消。较大 BK 可能减少循环/屏障、改善指令，但也增大 shared。输出 BM/BN 则改变复用次数与 CTA 数，不能把这两类参数当同一种“放大 tile”。",
+    "formula": "F_tile = 2*BM*BN*BK\nbytes_tile = element_bytes*BK*(BM+BN)\nAI_tile = 2*BM*BN/(element_bytes*(BM+BN))\nfloat32, BM=BN=32 → AI=8 FLOP/B（不含 C）\nC[m,n] += sum(A[m,k]*B[k,n] for k in 当前块)",
+    "flow": [
+      "CTA 选择 C 子块",
+      "合并加载 A/B → shared",
+      "等待数据就绪",
+      "寄存器 tile 沿 BK 累加",
+      "等待读完 → 下一块 / 写 C"
+    ],
+    "pitfall": "上式是 block 请求层的模型，不是无条件的 DRAM 流量。分块不会改变矩阵乘定义；尾块的 A/B 填 0，C 越界写入必须屏蔽。",
+    "hint": "Triton tl.dot 与 TileLang T.gemm 都先做 FP16 输入、FP32 累加基线。用 M=33,N=49,K=65 验证尾块，再扫 BM/BN/BK。额外写 thread tile 的 CPU 索引枚举，确认每个输出只有一个 owner。"
+  },
+  "11": {
+    "chapter": 11,
+    "slug": "cuda-tf32-pipeline",
+    "terms": "TF32|8 位指数、10 位显式尾数的矩阵乘输入精度，存储通常仍是 FP32\ncp.async|异步 global→shared 搬运指令族\n双缓冲|当前 tile 与下一 tile 使用不同存储槽\nprologue / drain|流水填充与排空，短任务不可忽略",
+    "intro": "精度改变和流水重叠是两条独立的优化轴。前者让计算进入不同吞吐的指令路径，后者减少等数据的时间。实验必须分别改变这两项，才能解释收益来源。",
+    "sections": "### TF32 先做误差账\nFP32 的尾数保留更少位后，乘法的输入发生舍入；FP32 累加不能恢复已经丢掉的输入信息。指数范围相近不表示数值完全相同。TF32x3 等软件组合路径也不能与一次 TF32 乘法混为一谈。\n\n### 双缓冲是依赖图的重排\n串行版每块都是 load→compute。双缓冲先加载 tile0，在计算 tile0 时提前发 tile1 的 load。使用 tile1 前必须等待其搬运完成；覆盖 tile0 的槽前必须确认全部读者结束。commit/wait 的 group 是发起线程的异步拷贝集合，跨线程可见性还要遵守完整同步协议。\n\n### 增加 stage 的收益有上限\n在理想独立搬运/计算模型里，稳态每块时间靠近 max(L,C)，首块仍需填充，末块仍需排空。stage 占 shared；缓冲增大可能减少 resident CTA，反而降低延迟掩盖。只看到 cp.async 指令不等于已证明 overlap。",
+    "formula": "T_serial = tiles*(L+C)\nT_ideal = L+C+(tiles-1)*max(L,C)\n例：4 tiles, L=3, C=5 → 32 与 23 时间单位\n这些是理想模型值，不是 GPU 时钟或实测加速比",
+    "flow": [
+      "先核对输入精度",
+      "填充 slot 0",
+      "提前加载 slot 1",
+      "wait → 计算当前 slot",
+      "读者完成 → 复用槽 / 排空"
+    ],
+    "pitfall": "不能把“一条矩阵指令的 FLOPs”直接当成一个时钟的吞吐。指令延迟、发射率、硬件通路和资源限制都需要实际设备上的证据。",
+    "hint": "Triton 比较 input_precision=\"ieee\" 与 \"tf32\"，固定形状分别报误差；TileLang 固定数学类型先扫 num_stages。记录生成代码、寄存器、shared 和时间，短 K 与长 K 各测一组。"
+  },
+  "12": {
+    "chapter": 12,
+    "slug": "cuda-mma-fragments",
+    "terms": "MMA atom|warp 协作的最小矩阵乘加操作\nfragment|每个 lane 持有的逻辑矩阵元素集合\nldmatrix|协作地把 shared 矩阵片段装入寄存器\n累加类型|C/D 的数值类型，和 A/B 输入类型分开选择",
+    "intro": "高层矩阵 tile 是一整块数学对象，硬件实际把它分散在多个 lane 的寄存器里。理解 fragment，首先要回答每个输出坐标由谁持有，再回答 A/B 如何到达正确的寄存器。",
+    "sections": "### 固定一条指令再谈布局\n本例讨论 m16n8k16、FP16 A/B、FP32 C/D 的 warp MMA。A 有 256 个元素，B 有 128 个，C 有 128 个。32 lane 平分输出时每 lane 持有 4 个 FP32 累加值；这只是一个 atom，不是整个 CTA 的总寄存器数。\n\n### 输出映射可逐点穷举\n令 g=lane//4、t=lane%4。四个 C 元素位于 (g,2t)、(g,2t+1)、(g+8,2t)、(g+8,2t+1)。枚举所有 lane 可得到 16×8 的完整无重叠覆盖。A/B 的布局不同，不能把这个 C 公式直接用于加载 A/B。\n\n### 装载地址与得到的数据不是同一映射\nldmatrix 中哪些 lane 提供行地址、哪些 lane 接收哪些寄存器字，要按 x1/x2/x4、是否 trans 和元素宽度分别查 PTX。mma 的 row/col 描述操作数解释，不等于全局内存一定使用哪种存储。先把 global→shared 的布局验证通过，再接 ldmatrix 与 MMA，最后验证 epilogue。",
+    "formula": "C[16,8] = A[16,16] @ B[16,8] + C[16,8]\n每 atom FLOPs = 2*16*8*16 = 4096\n每 lane 的 FP32 C 元素数 = 16*8/32 = 4\nlane 5: g=1,t=1 → (1,2),(1,3),(9,2),(9,3)",
+    "flow": [
+      "global 的逻辑 A/B",
+      "shared 的物理布局",
+      "ldmatrix → A/B fragment",
+      "warp MMA → C fragment",
+      "坐标映射 → 输出矩阵"
+    ],
+    "pitfall": "WMMA 的不透明 fragment 与 PTX 指定的 fragment 不可混为一谈。原书某些路径采用 FP16 累加，本学习基线默认 FP32；必须注明差异再比较精度或性能。",
+    "hint": "Triton 打印编译后的 PTX，识别 dot lowering 的实际形状；TileLang 查看生成的 CUDA，打印/可视化 fragment。先完成 128 个 C 坐标的唯一覆盖，再比较 M=16,N=8,K=16 和多个 atom 的结果。"
+  },
+  "13": {
+    "chapter": 13,
+    "slug": "cuda-swizzle",
+    "terms": "shared swizzle|改变 tile 内元素到 shared 地址的映射\n寄存器双缓冲|两套操作数寄存器交替 load/compute\nCTA swizzle|改变 program ID 到输出 tile 的映射\n工作集|一批任务近期涉及的数据，和物理执行顺序不同",
+    "intro": "本章有三个“换顺序”，它们作用的位置不同。shared swizzle 影响 bank，寄存器双缓冲影响指令依赖，CTA swizzle 影响任务空间局部性。一次同时打开三项，无法知道哪项起作用。",
+    "sections": "### XOR 是一个可逆地址映射\n教学小模型把 8×8 tile 的物理列定义为 c XOR r。固定行后，对列异或两次恢复原列，所以没有覆盖丢失。真实 CuTe Swizzle 使用地址位段，要保持要求的低位向量对齐，并分析实际 ldmatrix 访问组；示意 8×8 不是硬件万能最优布局。\n\n### 两套寄存器交换 load 与 compute\n当前 operand 用于 MMA 时，提前准备下一 operand，减少 shared load→MMA 的串行空隙。它与存储多份 global tile 的 shared stages 不同。代价是更多寄存器、可能更低 occupancy 或 spill。\n\n### CTA 重排不保证调度次序\ngrouped ordering 可以让邻近 program ID 访问重叠 A/B 区域，提高缓存局部性的机会。GPU 不保证按 ID 顺序执行，因此只能提出待测假设。映射必须是一一对应，最后不完整 group 要单独处理。",
+    "formula": "physical_col = logical_col XOR row（教学 8×8）\n(c XOR r) XOR r = c\n寄存器预算 ≈ C 累加器 + 2*(A/B 操作数) + 地址/临时值\nCTA 映射验收：sorted(mapped_tiles)==全部逻辑 tiles",
+    "flow": [
+      "确认冲突在哪一层",
+      "枚举 shared 地址与逆映射",
+      "独立测试寄存器双缓冲",
+      "独立测试 CTA ordering",
+      "正确性 → 资源 → 实测比较"
+    ],
+    "pitfall": "XOR 不天然无冲突；可逆性只证明没有地址碰撞，不证明每次事务的 bank 都不同。CTA swizzle 也不改变矩阵乘数学或 shared 布局。",
+    "hint": "Triton 只改 grouped program ordering，保持 BM/BN/BK 相同；TileLang 只改 shared layout，再独立改流水。逐项保存时间和 NCU 指标，不能只报告全部开关都开后的一个数字。"
+  },
+  "14": {
+    "chapter": 14,
+    "slug": "cuda-hopper-tma-wgmma",
+    "terms": "TMA|按 tensor descriptor 搬运多维数据的硬件路径\nmbarrier|跟踪参与到达、事务完成和 phase 的 shared 屏障对象\nWGMMA|Hopper 上 warpgroup 参与的异步矩阵乘指令族\nslot 生命周期|空闲、搬运中、可读、计算使用、可覆盖",
+    "intro": "异步流水不是把 load 改成 async 就结束。真正需要证明的是两件事：消费者何时允许读取，生产者何时允许覆盖。TMA 和 WGMMA 都可能在发出后继续使用内存，所以两个完成事件必须分别追踪。",
+    "sections": "### Descriptor 决定搬到哪里\nTensor map 描述地址、形状、stride、box 和 swizzle。它使搬运线程不必为 tile 的每个元素逐一算地址，但 descriptor 的对齐、范围和 shared 布局必须符合指令要求。先做 global→shared→global 的 round-trip，比直接接复杂矩阵乘更容易定位错误。\n\n### full 与 empty 表示不同事实\nfull 表示本轮数据可以被读取：相关到达计数与预期事务字节都满足完成条件。empty 表示上一轮全部消费者已经不再读取该槽。不能用“搬运完成”替代“读者完成”。环形 slot 每次复用会切换 phase，等待旧 phase 可能过早通过或永久等不到。\n\n### WGMMA 的发出不是完成\n计算在后台使用操作数时，shared slot 仍然存活。需要按指令协议完成 fence、commit 与等待，确认相关计算完成后才可复用。这里的 mbarrier 负责搬运就绪，WGMMA group 等待负责矩阵运算完成，两者不能互相替代。本章专用实现要求相应 Hopper 目标，不能仅凭设备名含 Blackwell 就照搬。",
+    "formula": "slot = tile_id % stages\nphase = floor(tile_id/stages) % 2\nshared_bytes = stages*(BM*BK + BK*BN)*element_bytes\n例：2 stages 时 tile 0/2 共用 slot 0，phase 分别为 0/1\n不变量：write(slot) 之前，旧读者计数必须为 0",
+    "flow": [
+      "empty：槽已释放",
+      "登记 expected bytes / 发 TMA",
+      "full：搬运完成",
+      "发 WGMMA / commit",
+      "等待计算完成 → 释放槽"
+    ],
+    "pitfall": "不能随手把 barrier arrive_count 写成线程数。必须逐条数真正执行 arrive 的线程及事务来源。图中的计数是教学协议，不能替代某一具体 kernel 的初始化参数。",
+    "hint": "Triton 先做 descriptor copy 的输入输出等价测试，再研究 Hopper matmul 教程；TileLang 先 TMA copy 再接 gemm。均先验证 1 个 tile、2 个 tile、奇数 tile，记录每次 slot/phase。原书 WGMMA 最小测试只在 sm_90a 目标运行。"
+  },
+  "15": {
+    "chapter": 15,
+    "slug": "cuda-sm120-warp-specialization",
+    "terms": "producer|提交搬运、维护数据就绪的线程角色\nconsumer|执行 load、MMA、归约与写出的角色\n寄存器预算|分配粒度和资源池约束下的实际可用寄存器\n能力边界|某个架构支持的指令，不能仅从品牌代号推断",
+    "intro": "SM120 的这条学习路径把 TMA 搬运与 warp 级 mma.sync 配在一起。它沿用 full/empty 的协议思想，但计算侧不能照抄 Hopper 的 WGMMA 完成规则。学习目标是分清哪些机制可复用，哪些必须按架构重写。",
+    "sections": "### 角色分工改变发射压力\n统一线程流既计算地址又做矩阵乘；分工后 producer 提前提交 tile，consumer 专注计算。即使 TMA 只由一个线程发起，所属线程组仍可能占资源，不能把其余线程自动当作零成本。\n\n### 资源预算先按角色计算\n若 P 个线程各需 Rp 个寄存器、C 个线程各需 Rc 个，概念下界是 P*Rp+C*Rc，再加分配粒度与其它限制。实际编译结果不一定等于这个模型。动态寄存器重分配还需要目标指令支持与正确到达协议，不能单凭源码出现 setmaxnreg 认定已生效。\n\n### 为什么更多 consumer 未必更快\n增加 consumer 可提供更多独立计算，但每个 consumer 的累加器、shared 读和 barrier 参与也增加。生产太慢时消费者仍等数据；生产很快时则可能满队列等待 empty。观察谁在等什么比只看 resident warp 数更有用。",
+    "formula": "R_model = P*Rp + C*Rc（32-bit 寄存器个数）\n例：P=128,Rp=32,C=256,Rc=160 → 45056\n这不是硬件分配结果；还需核对粒度、SM 上限和每线程限制\n吞吐受最慢稳态阶段限制，增 consumer 不能消除已饱和带宽",
+    "flow": [
+      "核对 SM 与编译目标",
+      "分配 producer / consumer",
+      "预算 registers / shared",
+      "TMA full → mma.sync",
+      "consumer 释放 → producer 复用"
+    ],
+    "pitfall": "原书方案同时变化 BK、stage 和角色时，速度差只能归于整个方案；不能声称全来自 TMA。SM100 与 SM120 也不是可互换的编译目标。",
+    "hint": "两种语言都先保持相同数学与 tile，比较统一流水和可支持的分工路径。对不支持的配置明确 SKIP，不能回退后还写原路径通过。验收需包含生成指令、资源报告及 barrier 的参与计数。"
+  },
+  "16": {
+    "chapter": 16,
+    "slug": "cuda-flash-attention-math",
+    "terms": "Q/K/V|query、key、value；单头形状 Q[Nq,D]、K[Nk,D]、V[Nk,Dv]\nS/P|分数 S=Q@K.T/sqrt(D)，逐行归一化后为 P；.T 表示转置\nonline 状态|每个 query 的 m、l 和未归一化输出 u[Dv]\ncausal|本例仅允许 key_index≤query_index 的方形注意力",
+    "intro": "FlashAttention 的关键是保留足够的小状态，使 S/P 的大矩阵不必落到 global。它没有删掉 QK 与 PV 的数学工作，而是改变了中间数据的存放和处理顺序。",
+    "sections": "### 从一行开始\n固定 query，先得到所有 key 的分数，再 softmax，最后对 value 加权。完整实现适合作为独立参考。分块实现只保留当前 KV tile 的分数，以及所有已处理 key 的状态。\n\n### 旧输出也必须重缩放\n新 tile 提高最大分数时，旧 l 与旧 u 都换到新基准。只改分母、不改输出分子，会让前面 tile 的贡献权重错误。处理完成后输出 O=u/l；若该行没有有效 key，本学习接口约定 O=0。\n\n### IO 降低不等于所有输入只读一次\n一个 Q block 扫描所有 KV tile，不同 Q block 可能重复读取 K/V。节省的是大 S/P 中间矩阵的 global 往返；具体 IO 还取决于 tile、缓存和片上容量。causal mask 改变有效计算范围，但不是随便跳过矩形 tile 的一部分就一定安全。",
+    "formula": "m_new=max(m_old,max(scores_tile))\na=exp(m_old-m_new); p=exp(scores_tile-m_new)\nl_new=a*l_old+sum(p)\nu_new=a*u_old+p@V_tile\nO=u_final/l_final\n例：scores=[0,0], V=[2,6] → l=2,u=8,O=4",
+    "flow": [
+      "一个 Q tile 常驻",
+      "加载当前 K / V",
+      "QK → mask → max",
+      "重缩放旧 l/u + 新 PV",
+      "遍历结束 → u/l 写回"
+    ],
+    "pitfall": "分块结果在实数中等价，浮点归约顺序不同不保证 bitwise 相同。不能把纯数学 CPU 演示称作 fused GPU kernel。",
+    "hint": "Triton 和 TileLang 从公开的 fused attention 教程出发，先固定单头、小尺寸。测试 N=1/17/65，dense/causal 与极端分数；每一 KV tile 后与 CPU 的 m/l/u 状态对照，再做性能实验。"
+  },
+  "17": {
+    "chapter": 17,
+    "slug": "cuda-attention-split-q",
+    "terms": "Split-Q|将不同 query 行交给不同计算组\nSplit-KV|把同一行的 key 范围切开，需要合并状态\nrow owner|负责维护并最终输出某 query 状态的线程组\nP fragment|QK 输出经过 softmax 后，作为 PV 输入的片段",
+    "intro": "Attention 的归约发生在 key 方向，query 行彼此独立。让一个计算组拥有完整 query 行，就能减少跨组交换 m/l/u 的需要。这是理解 Split-Q 的起点。",
+    "sections": "### 先画谁拥有哪一行\n假设 4 个 warp 计算 64 行 Q，每个 warp 拥有 16 行。对每个 KV tile，它们读共享的 K/V，但各自更新自己行的状态。行所有权在整个循环中保持不变，最终每行只写一次。\n\n### P 的数学位置与寄存器位置\nQK 的 C fragment 表示 S；逐行 max、exp、sum 后，P 要进入 PV 的 A fragment。若两种布局不一致，需要合法的数据重排。不能因为逻辑形状一样就 reinterpret；要对每个 lane/value 对应的坐标进行证明。\n\n### 减少通信也有代价\n多个 query 组重用 K/V，同时会增加不同寄存器状态与读取请求。BQ 变小增加 CTA 数，却可能增加 KV 重读；BQ 变大则增加输出累加器。把共享状态减少与任务并行增加分开测量。",
+    "formula": "query_owner(r) = floor(r / rows_per_group)\n每行只有一份 (m,l,u)；KV tile 数不改变 owner\nBr=64, groups=4 → 每组 16 行\nO_fragment 下界 ≈ Br*Dv / consumer_threads 个 FP32 值/线程",
+    "flow": [
+      "Q 行分给独立 owner",
+      "K/V tile 为多组共享",
+      "组内 QK 与行归约",
+      "S/P 布局转为 PV 输入",
+      "各 owner 更新并写自己的行"
+    ],
+    "pitfall": "warp 级独立状态不是可以无限新增 SM 任务；CTA 的调度仍有自己的资源边界。不要把 warp 数乘进 grid 数后称为等量的 SM 并行度。",
+    "hint": "Triton 改 BQ 而保持 BK 与数值路径一致；TileLang 改 GEMM warp policy 前先枚举行归约范围。检查每行写入一次、causal 对齐与尾行；扩展比较 Split-KV 的合并成本。"
+  },
+  "18": {
+    "chapter": 18,
+    "slug": "cuda-attention-kv-pipeline",
+    "terms": "K pipeline|供 QK 使用的数据槽与就绪事件\nV pipeline|供 PV 使用的数据槽与就绪事件\nearly release|确认最后一次读已结束后提前释放某槽\n反压|消费者未释放槽，生产者不能再推进",
+    "intro": "K 与 V 的使用时刻不同：先用 K 生成分数，再做 softmax，最后用 V 更新输出。因此把 K/V 当一份同步搬运的黑盒，会隐藏本可重叠的部分。双流水要分别画出两类数据的生存期。",
+    "sections": "### 两条流水共享一个数学迭代\n第 t 个 KV tile 的 K 用于 QK[t]，V 用于 PV[t]。producer 可提前装载后续 K/V，但不能覆盖仍在使用的 slot。K 最后被读取的时刻不一定等于 V 的最后读取时刻，释放点应由实际指令确定。\n\n### stage 深度要匹配距离\n更深的 V 预取可能覆盖 QK+softmax 的时间，K 预取则覆盖上一迭代剩余计算。两者需求不同。额外 stage 消耗 shared，导致较少 resident CTA 时，表面更深的流水也可能更慢。\n\n### 短序列是协议测试\n只有一个 tile 时，预取分支和排空路径最容易留下未完成等待；奇数 tile 会暴露环形索引错误。先验证这些边界，再测试长序列。每个等待必须对应一个必定发生的事件，不能靠“通常调度顺序”保证。",
+    "formula": "S_k ≈ stages_k*BK*D*element_bytes\nS_v ≈ stages_v*BK*Dv*element_bytes\n总 shared 还包括 Q、屏障、padding 与 staging\nslot_k=t%stages_k，slot_v=t%stages_v：两套独立索引",
+    "flow": [
+      "producer 等 K/V 的 empty",
+      "分别提交 K / V 搬运",
+      "K full → QK",
+      "softmax；V full → PV",
+      "各自最后读完 → 独立释放"
+    ],
+    "pitfall": "full/empty 计数不能从另一篇 kernel 照抄。producer 组 128 个线程与只有 1 个线程提交 TMA 是不同事实，实际 arrive 参与者必须数清。",
+    "hint": "两语言都先使用一条统一流水作为正确性基线。扩展到受支持的专门化路径时，独立扫 K/V stages；记录 single-tile、odd-tile 的通过状态及等待事件。浏览器中的时间线只表示依赖模型。"
+  },
+  "19": {
+    "chapter": 19,
+    "slug": "cuda-attention-multi-consumer",
+    "terms": "双 consumer|两组独立维护各自的 attention 局部状态\n奇偶路由|tile t 分给 t%2 的组\n局部终态|对该组所有 key 的 O/LSE 或 m/l/u\n最终归并|按概率质量把两个输出还原为全局结果",
+    "intro": "当一组线程的 QK→softmax→PV 依赖链很长时，可以让另一组独立任务在它等待时推进。原书采用把 KV tile 分成两路的方法，因此最后必须合并两份状态。",
+    "sections": "### 划分的是 key 集合\n两组处理同一个 Q，但分别遍历偶数和奇数 KV tile。每组都完成自己的 QK、online softmax 和 PV。它们的输出不是可以直接相加的两个输出列块，而是两份概率加权结果。\n\n### 归并沿用 LSE 公式\n把各自 m/l/u 转为 O=u/l、LSE=m+log(l)，或在未归一化域稳定合并。只有一个 KV tile 时另一组为空，必须直接保留非空状态；奇数 tile 时两组任务量不等也要正确。\n\n### overlap 是待验证收益\n两组可能在不同时间处于 Tensor 与特殊函数阶段，让调度器交错发射。但二者也竞争同一硬件资源，增加状态、屏障和最终合并。原书的 SM120 双 consumer 方案不能等同于论文所有 FA3 算法和 Hopper WGMMA 实现。",
+    "formula": "group(t)=t%2\nA={tile 0,2,4...}, B={tile 1,3,5...}\nO_final = weight_A*O_A + weight_B*O_B\nweight_A = exp(L_A-logaddexp(L_A,L_B))\nT_total 必须包括终态归并，不只量两条局部主循环",
+    "flow": [
+      "KV tile 奇偶分流",
+      "consumer A 独立状态",
+      "consumer B 独立状态",
+      "等待两路终态",
+      "LSE 加权合并 → 唯一输出"
+    ],
+    "pitfall": "“有两组 consumer”并不能证明计算通路一定重叠，也不能推断两倍速度。多组共享 full/empty 时要检查是否每个实际读者都参与释放。",
+    "hint": "Triton 先做两个 kernel 分段加 merge；TileLang 也先用分 kernel 等价实现验证数学。再尝试单 CTA 多 consumer，测试 1/2/3/5 个 KV tile，包含一组为空的情形。"
+  },
+  "20": {
+    "chapter": 20,
+    "slug": "cuda-attention-split-d",
+    "terms": "D chunk|特征维的一段，宽度 Dc\nQK 归约维|D 上各 chunk 点积相加形成完整分数\nPV 输出维|Dv 的不同 chunk 是不同输出列\n共同 rescale|同一行所有输出列共享 alpha 与最终 l",
+    "intro": "大 head dimension 同时增加 shared 的 Q/K/V 大小和寄存器中的输出累加器。Split-D 让搬运 tile 不必包含整个 D，但是否减少输出累加器，还取决于输出的持有方式。",
+    "sections": "### QK 必须先把 D 加完\n同一个 query-key 分数是所有 D chunk 点积之和。每个 chunk 可以逐次装入 shared 并累加 S，但不能中途对一个 chunk 的分数做 softmax。softmax(sum(scores_chunk)) 一般不等于分块 softmax 的任何简单和。\n\n### PV 的分块不是另一种 softmax\n得到 P 后，输出的各 Dv chunk 可独立做 P@V_chunk。它们使用同一份 P、m、l 和 alpha，每次最大值变化都要把所有旧输出 chunk 缩放。最后所有列都除同一行 l。\n\n### shared 与寄存器分别记账\nQ/K chunk 缩小可以降低搬运容量，但若仍在寄存器保存完整 Br×Dv 输出，累加器需求仍随 Dv 增长。解决 shared 容量不等于解决寄存器 spill。",
+    "formula": "S = sum(Q[:,d:d+Dc] @ K[:,d:d+Dc].T for d chunks)\nP = softmax(S/sqrt(D))\nO[:,v:v+Vc] = P @ V[:,v:v+Vc]\n错误反例：scores chunks=[2,0] 与 [0,2]，完整 softmax=[0.5,0.5]",
+    "flow": [
+      "沿 D 装入 Q/K chunk",
+      "累加完整 S，不做局部 softmax",
+      "一次行 softmax / online 更新",
+      "沿 Dv 计算各输出 chunk",
+      "共同 alpha 与 l → 输出"
+    ],
+    "pitfall": "LSE merge 适用于不同 key 子集，不适用于同一个分数的 D 子项。改变 chunk 顺序会改变浮点舍入，因此“数学恒等”不代表逐 bit 恒等。",
+    "hint": "Triton 分块累加 QK 后再 softmax；TileLang 为 QK/PV 使用不同 fragment 形状。测试 D=64/128/256/非整除值，所有输出 chunk 与完整参考比较；记录编译器寄存器和 spill。"
+  },
+  "21": {
+    "chapter": 21,
+    "slug": "cuda-cute-layout",
+    "terms": "Shape|逻辑坐标范围，可含层级嵌套\nStride|各坐标增一时线性 offset 的变化\nLayout|从逻辑坐标映射到 offset 的函数\ncomposition|先求内层映射，再将结果送给外层映射",
+    "intro": "CuTe 把散落的地址算术变成可以组合的对象。学习 Layout 不必先启动 GPU：枚举小形状的每一个坐标，就能检查地址、别名、洞和逆映射。",
+    "sections": "### 一个布局就是一个函数\n二维平坦模型中 offset=r*stride_r+c*stride_c。shape=(2,3)、stride=(3,1) 是连续行主序，stride=(1,2) 把同一逻辑形状映到不同线性顺序。shape 只告诉可取哪些坐标，stride 才决定地址。\n\n### size 与覆盖空间不同\n逻辑元素数是 shape 的乘积。带 padding 时最大 offset 加一可能更大；stride=0 可能有多个逻辑坐标别名到同一地址。不是所有 layout 都有全域逆，必须说明在哪个定义域内求逆。负 stride 还需要基址范围分析，本入门例子只用非负 stride。\n\n### Divide 和 product 要保持坐标含义\n把长度 8 按 tile 4 拆成局部坐标与 tile 坐标，i=inner+4*outer。它只重新组织坐标，并不自动搬运数据。CuTe 的层级 shape、coalesce 与 composition 有更严格的语义，先在 host 打印求值，再迁移到 kernel。",
+    "formula": "offset(r,c)=r*s_r+c*s_c\nshape=(2,3), stride=(3,1) → offsets 0,1,2 / 3,4,5\nstride=(4,1) → offsets 0,1,2 / 4,5,6，有 padding 洞 3\n逻辑 reshape/view 不自动生成 global copy",
+    "flow": [
+      "给定 shape / stride",
+      "枚举合法坐标",
+      "求线性 offset",
+      "检查别名 / 洞 / 覆盖",
+      "组合、切分并核对结果"
+    ],
+    "pitfall": "相同元素数不意味着相同布局，也不意味着可以 reinterpret。CuTe 的维度优先顺序应依据具体 layout 求值，不能把 Python 默认行主序当成 CuTe 全部规则。",
+    "hint": "Triton 构造带 stride 的 view copy，和连续张量对照；TileLang 显式建立布局并枚举。CPU 先穷举 (2,3)、padding、重复 stride，GPU 练习只接受无别名且边界合法的输入。原书 ch20_layout 是 host 断言程序。"
+  },
+  "22": {
+    "chapter": 22,
+    "slug": "cuda-cute-tiled-copy",
+    "terms": "Tensor|数据引擎/指针加上 layout 的视图\nCopy atom|一次可选硬件搬运操作及其约束\nTV-layout|从 thread/value 对到逻辑坐标的映射\npartition|给某线程取出它负责的子视图，不等于发起搬运",
+    "intro": "先回答“谁搬哪个元素”，再选择搬运指令。TiledCopy 把线程分工显式化，避免 global→shared、shared→register、register→global 三处各自写一套难以保持一致的索引。",
+    "sections": "### 线程与线程内 value 是两根轴\n教学模型 8 个线程、每线程 4 个值，i=4*t+v，恰好覆盖 32 个元素。另一个映射 i=t+8*v 也覆盖全部，但每线程连续性不同。同一条 warp 指令的地址合并与单线程向量宽度要分别分析。\n\n### 源和目标可以有不同布局\n同一个逻辑元素在 global 行主序和 shared swizzle 中有不同 offset。copy 的职责是按逻辑对应关系把源值放入正确目标，不能把相同线性 offset 当作默认等价。\n\n### Retile 不等于重新读内存\n为了让 copy 的寄存器片段匹配 MMA fragment，可能需要重组织视图或实际数据交换。是否零代价取决于两个映射是否已经兼容。必须打印 TV-layout 和元素坐标；仅看类型能编译不够。",
+    "formula": "contiguous-per-thread: i=t*V+v\ninterleaved: i=t+T*v\nT=8,V=4 → 32 个 (t,v) 覆盖 32 个逻辑元素\n尾部 N=29 时 i>=29 不加载、不写回；它仍可能参与同步",
+    "flow": [
+      "逻辑 tile 与源 layout",
+      "thread/value 划分",
+      "源 partition 与目标 partition",
+      "执行 copy / 等待完成",
+      "round-trip 检查逐元素相等"
+    ],
+    "pitfall": "copy atom 的对齐、字节宽度和参与线程限制不能靠高层类型名猜测。尾部无效元素与线程不参加 collective 是不同情况。",
+    "hint": "Triton 比较连续与交错索引载入；TileLang 实现 global→shared→global 往返。输入用 arange 编码位置以定位搬错，测试 N=1/29/32/33，确保不存在重复写和越界。"
+  },
+  "23": {
+    "chapter": 23,
+    "slug": "cuda-cute-tiled-mma",
+    "terms": "MMA atom|固定形状和 TV 映射的协作计算单元\nTiledMMA|用 atom 排布和目标 tile 扩展计算范围\npartition_A/B/C|按照各自操作数的坐标映射分片\naccumulator|跨 K 迭代保留的输出状态",
+    "intro": "TiledCopy 解决搬运归属，TiledMMA 解决计算归属。它们可以覆盖同一个 tile，但不是同一种映射。连接两者时，重点检查操作数的每个值是否到达预期 lane/register。",
+    "sections": "### 从 atom 扩展到 tile\n一个 m16n8 atom 有 128 个输出值。两个 M 方向 atom 覆盖 32 行，两个 N 方向 atom 覆盖 16 列；M/N 排布决定输出坐标，K 方向迭代则累加到已有输出，不新增输出面积。\n\n### A、B、C 的分片形状不同\nA 的逻辑轴是 M,K，B 是 N,K 或 K,N（取决于视图），C 是 M,N。相同的 thread ID 在三者中负责不同坐标集合。partition_fragment_C 得到的形状不是全局 C 的连续切片。\n\n### Attention 的桥接最能暴露错误\nQK 的 C 经 softmax 后作为 PV 的 A。可以零拷贝重解释的前提是两个 TV 映射对每个坐标都吻合；否则需要 shuffle/shared 等数据重排。元素总数一致只是必要条件，不是充分条件。",
+    "formula": "tile_output_elements = BM*BN\n每线程平均累加值 = BM*BN/threads\n例：BM=32,BN=16,threads=128 → 平均 4 个值\nK atom 迭代增加计算量，不增加 C 元素数量",
+    "flow": [
+      "选择 MMA atom",
+      "按 M/N/K 定义 tile",
+      "分别 partition A/B/C",
+      "copy fragment → gemm",
+      "按 C 的 owner 写回"
+    ],
+    "pitfall": "平均寄存器数不包含临时量，也不保证均匀分配。改变 atom layout 后，softmax 的行归约范围和 P 交接都需要重新验证。",
+    "hint": "Triton 追踪 dot 前后布局转换的编译器 IR；TileLang 可视化 accumulator 和输入 fragment。用唯一编号填每个输入坐标，先验证小矩阵，再扩展到两种 M/N warp 排布。"
+  },
+  "24": {
+    "chapter": 24,
+    "slug": "cuda-cute-tma-layout",
+    "terms": "字节 offset|TMA 描述符与地址位操作使用的单位之一\n元素 offset|CuTe 逻辑布局常用的元素索引单位\nSwizzle<B,M,S>|对选定地址位段做 XOR 的布局变换\nround-trip|搬入后按消费布局读出，恢复原始元素顺序",
+    "intro": "软件写地址和硬件生成地址必须遵守同一份契约。TMA 自动 swizzle 后，消费者若仍按普通行主序读取，就会拿到“看起来范围合法、实际上坐标错误”的数据。",
+    "sections": "### 先统一字节和元素\nhalf 一个元素 2 字节，FP8 一个元素 1 字节，FP4 一个字节装两个元素。对地址位做 XOR 时，改变元素位宽会改变位段的含义。必须写清 layout 输入输出的单位，不能复制同一组位移常量后直接换 dtype。\n\n### 把硬件映射和软件逆映射配起来\n教学图使用固定行的 XOR 列置换说明可逆性。实际 TMA 的 swizzle 模式、base 对齐和 box 大小有专门约束。按 descriptor 配置产生物理布局后，ldmatrix/TiledCopy 必须按对应布局读取，而不是再额外施加一次不匹配的 swizzle。\n\n### 先测搬运再接计算\n输入填 `1000*row+col`，搬入 shared，再按消费者视图读出写回 global。逐元素检查比最终矩阵乘误差更容易定位错误。改变 stage 偏移、base 地址和 dtype 后重复测试，再接 MMA。",
+    "formula": "byte_offset = element_offset * bytes_per_element（非 subbyte）\nFP4: byte_index = element_index//2, nibble = element_index%2\n教学置换 P(r,c)=(r,c XOR r)，P(P(r,c))=(r,c)\n实际 TMA swizzle 以目标 PTX / CuTe layout 为准",
+    "flow": [
+      "逻辑坐标 → 元素 offset",
+      "换算字节 / packed 坐标",
+      "descriptor 决定物理 swizzle",
+      "消费者匹配布局读取",
+      "写回并逐坐标比对"
+    ],
+    "pitfall": "可逆 XOR 图只是布局直觉，不是 SW32/SW64/SW128 的逐位硬件实现。实际参数必须引用当前目标的 descriptor 和布局定义。",
+    "hint": "Triton descriptor copy 与普通 load 做等价验证；TileLang 显式 swizzle 和 TMA 搬运配对。小 tile、不同 stage、非零 base offset 各测一组。原书 ch23_swizzle_tma 是 host 布局断言，不能当硬件 copy 测试。"
+  },
+  "25": {
+    "chapter": 25,
+    "slug": "cuda-cute-gemm",
+    "terms": "主循环|沿 K 搬运并累加 C 的过程\nepilogue|完成缩放、偏置、激活或类型转换后写 C\n布局契约|global、shared、fragment 三种映射的衔接\nstaging|为合并写回而临时存放输出",
+    "intro": "本章把前四篇 CuTe 抽象接成完整 GEMM。建议先跑通单 stage，再加入异步搬运，最后优化写回。每一步只改变一类机制，才能知道错误出在哪一层。",
+    "sections": "### 三种对象各有职责\nLayout 描述坐标；Tensor 将布局绑到存储；TiledCopy 分配搬运；TiledMMA 分配计算。主循环先取 global tile，再按 copy 分工放入 shared，等待就绪后读取 operand fragment，gemm 累加到 C fragment。\n\n### 流水协议独立于类型推导\n布局正确不会自动保证生命周期正确。下一块的 producer 写入不能覆盖当前消费者仍在读的 shared；寄存器双缓冲也要防止覆盖尚未使用的 operand。类型系统能帮助检查形状，不能替代运行时同步证明。\n\n### Epilogue 也要校验\nC fragment 的持有顺序常不适合直接合并写出。可经 shared staging 重新组织，再向量化写回。加入 bias/activation 会改变数据读取和精度，计时必须包含实际部署的完整 epilogue。先与纯 GEMM 对齐，再单独打开每项。",
+    "formula": "C = alpha*(A@B) + beta*C_old + bias\n若 activation=ReLU，则最后取 max(C,0)\n本学习基线 alpha=1,beta=0，bias 按输出列广播\n例：dot=11,bias=-12 → ReLU 输出 0",
+    "flow": [
+      "构造 global / shared layouts",
+      "TiledCopy 搬入并等待",
+      "TiledMMA 沿 K 累加",
+      "epilogue 缩放 / bias",
+      "staging → 合并写回"
+    ],
+    "pitfall": "不要用某一份编译配置的良好结果宣称 CuTe 总比手写快。对照需要相同 dtype、累加类型、形状、tile 和计时范围。",
+    "hint": "Triton tl.dot 后融合列 bias+ReLU；TileLang T.gemm 后显式 epilogue。先测非方阵和尾块，再比较是否 staging、不同 stages；保留原始输入，验证 beta 非零时没有错误覆盖。"
+  },
+  "26": {
+    "chapter": 26,
+    "slug": "cuda-cute-attention-variants",
+    "terms": "统一流水|同一计算组负责搬运与计算\nWS|warp specialization，按角色分离生产与消费\n双 consumer|两路局部状态与一次最终 merge\nsmoke test|仅验证某条链路的最小自检，不是完整算子验收",
+    "intro": "同一个 attention 数学接口可以有不同执行结构。比较这些实现时，先把接口和数值约定统一，再解释流水、布局与分工的差别，否则测试结果无法归因。",
+    "sections": "### 三条路径保留同一数学状态\n统一 cp.async 方案、TMA+WS 方案和双 consumer 方案都必须产生同一逻辑输出。前两者可以维护一份行状态；第三者拆 key 集合后需要合并。Q/K/V 的形状、scale、mask 和输出类型必须一致。\n\n### 逐层缩小错误范围\n若完整 attention 不对，先做 TMA copy smoke；再只做 QK；再检查 max/l；再接 PV；最后检查 epilogue。每层用位置编码数据和小尺寸参考，比只看最终 allclose 更有信息。\n\n### 公平对照需要完整路径\n同样的 BM/BK、相同累加类型和相同 prefill/decode 形状下比较。双 consumer 的终态合并、所有预处理、必要初始化都计入范围。编译缓存与首次 JIT 不计入 steady-state kernel 时间，但另行记录首次调用成本。",
+    "formula": "O_ref = softmax(Q@K.T/sqrt(D)+mask)@V\n路径 A/B/C 的输出形状均为 [Nq,Dv]\n比较量：max_abs、相对 L2、完整延迟、寄存器/shared\ncopy smoke PASS ≠ attention PASS ≠ 性能改进",
+    "flow": [
+      "冻结统一输入契约",
+      "copy smoke / QK 单独校验",
+      "三种流水执行相同数学",
+      "合并与 epilogue 完成",
+      "统一误差与总时间比较"
+    ],
+    "pitfall": "书中三种命名属于该仓库的实现组织，不等于所有同名论文的完整实现。框架与编译器变化的收益不能都归到 TMA 指令。",
+    "hint": "两语言均先跑同一个测试矩阵：N=1/65/257、D=64/128、dense/causal。只改变一项流水开关，记录实际选择的内核，不允许静默 fallback 冒充指定路径。"
+  },
+  "27": {
+    "chapter": 27,
+    "slug": "cuda-cute-split-d-layout",
+    "terms": "类型代数|用 shape/layout 的组合表达分块和归属\nS fragment|跨所有 D chunk 累加的分数片段\nO fragments|输出 Dv 各部分的累加片段集合\nreinterpret 证明|每个底层值在新旧视图中对应同一数学元素",
+    "intro": "上一轮 Split-D 解释了算法，本章专门检查类型和寄存器。D 被切成 chunk 后，哪些维度只是循环，哪些维度真的增加存储，要逐个写出来。",
+    "sections": "### S 的形状不随 D chunk 数增加\nQK 每个 chunk 贡献同一个 Br×Bc 分数矩阵。只需一份 S 累加器跨 chunk 更新，而不是为每段保留一份最终 S。处理完全部 chunk 才能 softmax。\n\n### O 可能仍然保存完整 D\nPV 沿输出列分块计算，每个输出 chunk 是不同坐标。如果所有 chunk 的 O 都保留到 KV 循环结束，总元素仍为 Br*Dv。这样降低 shared 容量却没有降低输出寄存器总量。\n\n### 用坐标枚举审查视图\n把 S 的 row/col 视图用于 softmax，再转成 PV 的 A，要验证每个 lane/value 的逻辑坐标。相同字节数、相同元素数量、编译成功都不足以证明正确。先在 host 穷举小 atom 的映射，再测试多个 chunk 的数据。",
+    "formula": "QK: S[Br,Bc] += Q_chunk[Br,Dc] @ K_chunk[Bc,Dc].T\nPV: O_chunk[Br,Vc] += P[Br,Bc] @ V_chunk[Bc,Vc]\nO 总标量数 = Br*Dv\nBr=64,Dv=512,threads=128 → 256 个 FP32 累加值/线程的平均下界",
+    "flow": [
+      "定义 QK / PV 两套 tile",
+      "枚举 thread/value 坐标",
+      "跨 D chunk 累加 S",
+      "验证 P 到 A 的映射",
+      "预算全部 O chunk 与临时值"
+    ],
+    "pitfall": "上面的 256 只是平均逻辑累加值，已提示资源风险；不能把它与硬件寄存器上限机械相等后忽略分配粒度、其它临时量和 spill。",
+    "hint": "Triton 对不同 D chunk 方案比较编译资源；TileLang 保存两套 fragment 布局图，禁用未证明的 reinterpret。验收 D=64/192/512，加一个非整除的语义基线；专用 kernel 不支持的形状明确拒绝。"
+  },
+  "28": {
+    "chapter": 28,
+    "slug": "cuda-persistent-attention",
+    "terms": "persistent CTA|一个 CTA 循环处理多个逻辑任务\n任务队列|本例为静态 stride 分配，不含全局原子队列\n尾波|最后一批任务不足以填满全部可用执行位置\n条件重缩放|在数学允许时跳过乘 1 等冗余状态更新",
+    "intro": "普通 grid 一次为每个 Q tile 启动一个任务。persistent 方案只启动一定数量 CTA，让它们循环拿后续任务。它能改变调度与资源复用，但不能凭名字保证更快。",
+    "sections": "### 先证明任务无遗漏无重复\n给 P 个 worker 分配 T 个任务，worker p 依次处理 p、p+P、p+2P…。对任一 task，owner=task%P，迭代=task//P，唯一确定。T<P 时部分 worker 无任务，仍应安全结束。\n\n### 任务之间必须重置状态\n换到新 Q tile 时 m/l/u、mask 范围、slot phase 和输出地址要正确初始化。不能把上个任务的 online 状态带到下个任务。共享缓冲可以复用，但生命周期必须结束。\n\n### 尾波与局部性一起看\npersistent 可以减少重复调度或保留某些结构，但 worker 数过少会限制并行，过多又失去资源复用收益。causal 的不同 query 任务工作量不同，静态分配可能不均匀；应记录每 worker 的有效 tile 数。",
+    "formula": "worker(task)=task%P\niteration(task)=task//P\nT=10,P=3 → [0,3,6,9], [1,4,7], [2,5,8]\nmax_tasks=ceil(T/P)，但不同 task 的真实耗时可以不同",
+    "flow": [
+      "生成逻辑 Q tile 任务",
+      "worker 按 stride 领取",
+      "重置本任务 m/l/u",
+      "遍历 KV 并输出",
+      "确认完成 → 下个 task"
+    ],
+    "pitfall": "常驻 CTA 不是常驻某个确定 SM 的永久绑定。不能从 grid 数直接推断每个 SM 的精确执行顺序或占用。",
+    "hint": "Triton 用 program ID 加固定 grid stride；TileLang 用同样任务循环。先用整数 task ID 写 marker，检查每个 marker 恰好一次，再接 attention。测试 tasks=1/P-1/P/P+1，包含 causal 不均匀负载。"
+  },
+  "29": {
+    "chapter": 29,
+    "slug": "cuda-non-ws-split-d",
+    "terms": "non-WS|本路径不专门预留一组只搬运的线程\nchunk 解耦|QK 与 PV 使用各自 chunk 和 buffer 生命周期\n独立 barrier 集|不同数据流不能意外共享完成计数\n预取距离|发起搬运与真正消费之间的迭代间隔",
+    "intro": "分工可以降低计算组的地址指令负担，也可能占用本来可用于 MMA 的线程和资源。non-WS 让更多线程参与计算，用明确的阶段协议安排搬运，适合与 WS 做同语义对照。",
+    "sections": "### 全员计算仍需指定提交者\nTMA 可以由选定线程提交，但其他线程并非整段 kernel 都处于 producer 角色。提交后大家继续各自计算。消费者必须等待对应数据，而提交者也不能阻塞在依赖自身未来动作的循环中。\n\n### K/V 与 D chunk 的状态分开\n一个 KV tile 内有多个 QK D chunk，之后还可能有多个 V 输出 chunk。slot 和 phase 应绑定实际的搬运序列编号，而不是随手复用外层 KV 索引。独立 barrier 集避免一个完成事件误唤醒另一数据流。\n\n### More stages 的代价要量化\n增加阶段可扩大预取窗口，也增加 shared、barrier 管理和临时寄存器。统一线程流中发射资源竞争依然存在。测量应同时记录 spill、等待原因与总时间，而不是只数活跃 warp。",
+    "formula": "load_sequence = kv_tile*chunks_per_tile + chunk_id\nslot = load_sequence%stages\nphase = floor(load_sequence/stages)%2\nchunks 与 stages 不互为倍数时，更容易暴露错误相位",
+    "flow": [
+      "选择提交线程并计算序号",
+      "K chunk 发起 / 等待",
+      "所有计算线程做 QK",
+      "独立 V 流水做 PV",
+      "最后读完释放，预取后续"
+    ],
+    "pitfall": "把 producer 线程重新用于计算，未必减少整体指令或资源。比较需单独调参，否则一个方案的默认 tile 可能偏向另一方案。",
+    "hint": "Triton 与 TileLang 分别保留普通流水和专门化基线。选择 chunk 数 1/3/5、stage 2/3 的组合做协议测试；记录每个 slot 的最近 writer 和最后 reader，不满足就阻止复用。"
+  },
+  "30": {
+    "chapter": 30,
+    "slug": "cuda-fp8-quantization",
+    "terms": "E4M3FN|有限值 FP8 格式，最大有限幅度 448，具有特殊编码约定\nscale s|本篇用 x_hat=s*q 的反量化方向\namax|分组内 max(abs(x))\n量化误差|原值与反量化重建值之差，不只是编码是否成功",
+    "intro": "FP8 是浮点格式，不是把 float 截成一个整数。学习时先实现软件数轴与舍入，再把缩放、转换和布局放进 GPU。格式、scale 方向和分组必须明确，否则两份“FP8”数据不一定代表同一数值。",
+    "sections": "### 量化由两次选择组成\n先选 scale，使组内范围适配格式；再把 x/s 舍入到 E4M3FN 的可表示值。零块单独约定 s=1、q=0。舍入到最近偶数、饱和到有限值与 NaN 策略需要一致；本 demo 只接受有限输入。\n\n### 大组节省 scale，小组保留分辨率\n一个离群值会抬高整个组的 scale，使小值挤到更少的格点。按行、按块或按通道分组影响误差，也影响 scale 元数据的搬运和后续乘法。不能只看数据缩小到 1 字节。\n\n### 前处理有真实成本\namax 归约、scale 写出、FP8 写出都需要执行。若量化结果只使用一次，必须把这些成本算入总时间；若复用很多次，则报告可摊销次数。读写融合需要验证中间量，而不是仅看最终矩阵乘。",
+    "formula": "s = amax/448 if amax>0 else 1\nq = round_to_e4m3fn(x/s)\nx_hat = s*q\nabs_error=abs(x_hat-x)\n例：同组 [1,2,448] 的 scale=1，小值与离群值共享同一格点系",
+    "flow": [
+      "按约定划分量化组",
+      "归约 amax / 处理零块",
+      "计算 scale 与归一值",
+      "E4M3 舍入 / 饱和",
+      "输出 data+scale 并重建校验"
+    ],
+    "pitfall": "FP8 E4M3 的不同变体有不同特殊值编码。软件模型明确使用 E4M3FN 有限数，不把通用 minifloat 或 INT8 当作 bit-exact FP8。",
+    "hint": "Triton 写 amax+缩放+转换，TileLang 融合同样前处理。与软件可表示值表逐项比较，覆盖零、次正规附近、舍入中点、448 和离群值。报告 max_abs 与饱和计数，不只 allclose。"
+  },
+  "31": {
+    "chapter": 31,
+    "slug": "cuda-fp8-gemm",
+    "terms": "行/列 scale|只依赖输出坐标的因子，可以在满足条件时外提\nK-block scale|随归约位置改变，不能整体移到末尾\n反量化参考|先恢复浮点值再矩阵乘的独立基线\n端到端时间|包含量化、主 kernel、输出处理等必要环节",
+    "intro": "FP8 GEMM 的核心不只是换输入 dtype，而是把 scale 放在数学上正确的位置。只依赖输出行列的 scale 和沿 K 改变的 scale，有完全不同的累加规则。",
+    "sections": "### 可以外提的情形\n若 A[m,k]=sA[m]*a[m,k]，B[k,n]=sB[n]*b[k,n]，两个 scale 对 k 都是常数。于是 C[m,n]=sA[m]*sB[n]*sum(a*b)，可以在 epilogue 乘回。\n\n### 不能外提的情形\n若每个 K block 都有自己的 scale，必须对每块的部分点积先乘对应 sA*sB，再把这些实值 partial 相加。用某一块的 scale 乘最终总和会错；简单平均 scale 也没有一般依据。\n\n### 分开量化误差和实现误差\n一组参考用原始高精度 A/B，另一组用反量化后的 A/B。GPU 对后者的差反映实现或累加误差；后者对原始结果的差反映量化损失。只有两组都报告，才能判断“错”来自编码还是 kernel。",
+    "formula": "row/col: C[m,n]=sA[m]*sB[n]*sum_k(a[m,k]*b[k,n])\nblock-K: C[m,n]=sum_g(sA[m,g]*sB[g,n]*partial_dot_g)\n例：两个 partial 都为 1，scale 乘积为 1 和 4 → C=5\n不能先合成 2 再任意乘 1 或 4",
+    "flow": [
+      "FP8 data 与 scale 契约",
+      "逐 K tile 搬入",
+      "MMA 产生 partial",
+      "按 scale 粒度乘回 / 累加",
+      "epilogue → 双参考误差"
+    ],
+    "pitfall": "前处理时间不应从“端到端 FP8 加速”里消失。原始输入和反量化参考都要保留，避免在原地量化后失去对照。",
+    "hint": "Triton 先做支持的 FP8 dot+行列 scale，再加 K-block scale；TileLang 同样分两步。输入为 2 个 scale 不同的 K 块，确保错误外提会被测试捕获；再扫真实形状并计入量化。"
+  },
+  "32": {
+    "chapter": 32,
+    "slug": "cuda-nvfp4-format",
+    "terms": "E2M1|4-bit 浮点数据格点，正值为 0、0.5、1、1.5、2、3、4、6\n两级 scale|x_hat=global_scale*block_scale*q\npacking|两个 4-bit 编码装入一个 byte\nblock scale|常见 NVFP4 路径中每 16 个值共享 FP8 scale",
+    "intro": "4-bit 数据的格点很稀疏。NVFP4 用局部分组 scale 和更大范围的全局 scale 配合，编码与 scale 必须一起解释。只把两个 nibble 拼起来并不等于完成正确量化。",
+    "sections": "### 先画 E2M1 数轴\n正半轴有八个格点，负值对称并有符号零。最邻近舍入选择距离最近的格点，中点按约定处理。越界饱和到幅度 6；它没有普通 FP32 的 Inf/NaN 表示。本软件模型只接收有限值。\n\n### Scale 自身也会舍入\n理想局部 scale=amax/(6*global_scale)，但实际存储 scale 的 FP8 格点会产生第二次舍入。因此编码 q 时应使用实际存下来的 scale，而不是仍用未舍入的理想值。零块显式编码，不计算 0/0。\n\n### 字节测试和数值测试互补\n先逐 nibble 验证 pack/unpack 恢复编码，再解码并乘回两级 scale 比较原值。奇数长度最后一个 byte 的高 nibble 填 0，逻辑长度单独保存。硬件 scale layout 可能有 padding/swizzle，本章逻辑编码不冒充该物理布局。",
+    "formula": "x_hat = g*s_block*decode_e2m1(code)\npacked_byte = code[2i] | (code[2i+1]<<4)\nlow=byte&15; high=(byte>>4)&15\n16 个值：8 数据字节 + 1 个 FP8 block scale 字节（不计其它元数据）",
+    "flow": [
+      "选 global / block scale",
+      "舍入并保存 block scale",
+      "按实际 scale 量化 E2M1",
+      "两 nibble 打包一 byte",
+      "解包 + 两级反量化验证"
+    ],
+    "pitfall": "实际 NVFP4 转换与 scale 布局要匹配目标指令约定。软件小模型验证数值和 packing，不声称已实现全部设备专用 SF 布局。",
+    "hint": "Triton 与 TileLang 先做软件码点选择、uint8 pack/unpack；再用受支持的 scaled dot。测试 0、正负中点、极值、奇数长度及零组。字节一致与允许的重建误差分别验收。"
+  },
+  "33": {
+    "chapter": 33,
+    "slug": "cuda-block-scaled-mma",
+    "terms": "SF|scale factor，矩阵指令的附加操作数\nscale fragment|每个 lane 持有的 scale 元素集合\nzip|把数值与其 scale 按契约配对，不是任意拼接\nblock-scaled MMA|沿约定块宽消费数据及对应 scale 的矩阵乘",
+    "intro": "低精度矩阵乘多了一条独立的数据流：scale。数据加载正确而 scale 放错位置，会得到形状正确但数值错误的结果。应把 SF 和 A/B 一样画进流水与资源预算。",
+    "sections": "### Scale 的 K 分组参与归约\n每个 K 组都有对应的 A/B scale。硬件 block-scaled 指令把它们作用到该组数据上再累加。外层 global scale 若对归约轴不变，才可在 epilogue 统一乘回。\n\n### 四条搬运流都要就绪\nA、B、SFA、SFB 可能各有独立 descriptor 和 shared 布局。consumer 必须等它要使用的所有数据完成，而不是只等待 A/B。事务字节数与释放计数应包含实际的 SF 搬运。\n\n### 最有力的测试是给 scale 编码\n让不同组 scale 故意不同，甚至选择 1、2、4 等容易手算的数；数据全 1。正确输出应等于每组元素数乘对应 scale 乘积之和。全同 scale 测试会掩盖布局置换错误。",
+    "formula": "C[m,n] = sum_g(sA[m,g]*sB[n,g]*sum_{k in g}(a[m,k]*b[k,n]))\n每组 16 项全 1，scale 乘积分别 1、2 → C=16+32=48\nshared_total = A+B+SFA+SFB+barriers+padding+staging",
+    "flow": [
+      "data 与 SF 按组对应",
+      "分别搬入 A/B/SFA/SFB",
+      "等待四条依赖就绪",
+      "配对 fragment → scaled MMA",
+      "global scale / epilogue 写出"
+    ],
+    "pitfall": "支持 FP4 存储不等于支持某一种 block-scaled 指令。SM100 与 SM120 的指令族及 scale layout 需要分别核对，不能直接复制模板参数。",
+    "hint": "Triton 先用反量化 dot 参考，再接目标支持的 dot_scaled；TileLang 按目标后端的 block-scaled 示例实现。每组不同 scale、最后不足一组、数据/SF padding 都要验证；设备不支持时明确跳过硬件部分。"
+  },
+  "34": {
+    "chapter": 34,
+    "slug": "cuda-quantized-attention-math",
+    "terms": "logits 误差|量化 Q/K 后分数矩阵的误差\n概率误差|分数扰动经 softmax 后的误差\n输出误差|概率、V 量化和累加共同产生的最终误差\nESS|有效样本数，1/sum(p²)，描述权重是否集中",
+    "intro": "量化 attention 有多处损失来源，最终 allclose 只告诉你结果是否越过阈值。要学习如何改进，需分别测 QK、P、V 和累加的贡献，尤其检查 causal 早期行与尖峰分布。",
+    "sections": "### Softmax 对误差的敏感性依赖概率\n小扰动下 delta_p_i≈p_i*(delta_s_i-sum(p*delta_s))。给整行分数加常数会抵消，改变相对分数才会改变概率。概率集中时输出更依赖少数 V，不能假设大量 key 总能平均掉误差。\n\n### 平滑 K 的精确不变性\n令 K′=K-mu_K，其中 mu_K 在 key 行方向是同一个向量。Q@K′.T=Q@K.T-Q@mu_K，每个 query 行减去同一标量，所以 softmax 不变。若还要输出 LSE，必须补回该行常数。\n\n### 逐阶段注入量化\n先只量化 Q/K，记录 logits 与概率差；再只量化 V；然后量化 P；最后组合。它们的误差可能相互放大或抵消，不能简单把各 max_abs 相加称为真实总误差。模型任务质量还需要超出单 kernel 的验证。",
+    "formula": "p=softmax(s)\ndelta_p_i≈p_i*(delta_s_i-sum_j(p_j*delta_s_j))\nESS=1/sum(p_i²)：均匀 n 项时为 n，one-hot 时为 1\nO=p@V；比较 max_abs、相对 L2、逐行分布与失败输入",
+    "flow": [
+      "高精度 QK / P / O 参考",
+      "只量化 QK → 检查 logits",
+      "只量化 V / P → 检查贡献",
+      "组合量化 → 逐行误差",
+      "尖峰 / causal / 长序列验收"
+    ],
+    "pitfall": "放宽容差不能修复布局错误。量化可接受的阈值来自应用需求与数据分布，不能照抄书中某张卡某组随机输入的 allclose 阈值。",
+    "hint": "两语言均提供开关只量化 Q/K、V 或 P，每组保存中间输出。输入包含均匀分数、单个尖峰、全负、长序列；输出按行报告误差，特别检查 causal 第一行。"
+  },
+  "35": {
+    "chapter": 35,
+    "slug": "cuda-fp8-attention-preprocess",
+    "terms": "smooth-K|减去 key 方向公共均值向量\nHadamard 旋转|成对作用于 Q/K 的正交变换，用于分散异常通道\nV 转置量化|为 PV 消费布局组织 V，同时生成 scale\n融合前处理|在一次遍历中做多项操作，减少中间读写",
+    "intro": "主 attention kernel 运行前，Q/K/V 可能已被平滑、旋转、量化和重排。前处理既决定精度，也决定短序列端到端成本，不能只优化最后的矩阵乘。",
+    "sections": "### 哪些变换保持数学\nK 减公共均值不改变 softmax。Q/K 同乘正交矩阵 H，因 H@H.T=I，点积保持。V 减通道均值 mu_V 后，利用每行概率和为 1，有 P@(V-mu_V)=P@V-mu_V，输出需加回 mu_V。所有不变式都在量化前的实数计算中成立，量化后仍有误差。\n\n### 格式和布局一起输出\n前处理不仅输出低精度值，还输出 scale、padding 后形状与必要的均值。V 转置后量化组的含义可能变化，必须明确是沿 key、通道还是块分组，消费端采用相同约定。\n\n### 融合先看依赖\n全序列均值未得到前，不能随意在一个普通 CTA 中让所有 block 使用最终均值。多 kernel 基线先统计再转换；融合需要限定同步范围或重新组织算法。测量输出所有中间量的基线后，再减少不必要的落盘。",
+    "formula": "(Q@H)@(K@H).T = Q@K.T，H@H.T=I\nsoftmax(Q@(K-mu_K).T)=softmax(Q@K.T)\nP@(V-mu_V)+mu_V=P@V\nT_e2e=T_statistics+T_quantize_layout+T_attention+T_epilogue",
+    "flow": [
+      "统计 K/V 均值与量化组",
+      "平滑 / 可选正交旋转",
+      "量化并生成 scale",
+      "V 转置与 padding",
+      "主 kernel → 必要修正"
+    ],
+    "pitfall": "不能把预处理好的输入复用多次的时间，直接当成每次输入都变化的端到端延迟。旋转的维度和 padding 必须遵守正交变换约定。",
+    "hint": "Triton 先分别写均值、平滑、量化；TileLang 尝试把局部变换与转置融合。分别验证均值、重建 Q/K/V、最终 O；同时输出预处理占总时间比例。"
+  },
+  "36": {
+    "chapter": 36,
+    "slug": "cuda-fp8-persist-scale",
+    "terms": "persist-D|本实现把完整 head dimension 的有关状态保留在片上\nscale folding|在条件允许时把比例因子合并进其它运算\nexp2 域|使用 2 为底的指数，需要乘 log2(e)\n输出修正|PV 的 scale 与平滑均值在正确位置乘回或加回",
+    "intro": "量化值参与 MMA 后得到的不是原始实数分数。scale 必须在 softmax 前作用到 logits；PV 的 scale 则要依据它是否随归约 key 改变，决定能否延后处理。",
+    "sections": "### QK scale 不能放到 softmax 外\n如果同一 query-key 点积的 scale 乘积为 sQ*sK，则分数为 dot8*sQ*sK/sqrt(D)。softmax 非线性，不能先对 dot8 做 softmax，再乘 sQ*sK。使用 exp2 时系数还需乘 log2(e)。\n\n### P/V scale 的消去要逐项证明\n如果 V scale 只按输出通道变化，它可以从 key 归约外提；若随 key block 变化，则每个 block 的 PV partial 都要按自身 scale 处理。P 的公共缩放若同时进入未归一化分子和分母，才可能在最终除法中抵消。\n\n### Lazy rescale 需要范围保证\n跳过某次重缩放可能让中间指数大于 1。低精度 P 的可表示范围和累加类型会限制它是否安全。优化不能只证明最终实数式等价，还要检查中间范围、舍入与溢出。",
+    "formula": "score = dot(Q8,K8)*sQ*sK/sqrt(D)\nexp(score-m)=exp2((score-m)*log2(e))\n若 V[j,d]=sV[d]*V8[j,d]：O[d]=sV[d]*sum_j(p[j]*V8[j,d])\n若 sV=sV[j,d]，不能直接把一个 sV[d] 外提",
+    "flow": [
+      "消费 Q8/K8/V8 与 scales",
+      "QK MMA → 恢复 score 尺度",
+      "online softmax / P 量化",
+      "PV 按合法尺度累加",
+      "最终归一化与输出修正"
+    ],
+    "pitfall": "代数抵消并不等于量化后 bitwise 抵消；在缩放前后分别舍入会产生不同结果。形状支持范围以具体 dispatch 与测试为准。",
+    "hint": "Triton 和 TileLang 分别写显式反量化版与 scale 折叠版。先在无量化舍入的小例子中证明等价，再用 FP8 输入比较误差；加入跨 key 改变 scale 的反例，防止非法外提。"
+  },
+  "37": {
+    "chapter": 37,
+    "slug": "cuda-fp8-split-d-m4n2",
+    "terms": "M/N warp 排布|计算组沿输出行/列方向的组织\nM4N2|本书某一 kernel 的 4×2 warp 排布名称，不是通用最优参数\nspill|寄存器不足导致值放到 local memory\n跨 N 归约|同一行分布在多个组，需要合并 softmax 统计",
+    "intro": "大 D 有两个不同瓶颈：shared tile 放不下，以及输出累加器寄存器太多。Split-D 主要处理前者；改变 M/N 排布和输出行块大小可以影响后者，但会引入新的通信。",
+    "sections": "### 先看总输出元素\n若 Br、Dv 和线程数都不变，平均每线程输出元素 Br*Dv/T 不会仅因改名 M4N2 而下降。原书具体方案还改变 Br 等配置；必须把完整配置写出来才能解释寄存器变化。\n\n### N 方向分工带来交换\n把一行的列分到多个 warp 后，softmax 的 max/sum 可能需要跨 warp 合并，P 到 PV 的交接也可能需要 shared round-trip。减少每线程状态，可能增加通信和同步。\n\n### 分别验证两种预算\nshared 预算用 chunk 尺寸与 stage 数计算，寄存器预算用完整累加器和活跃临时值估计。然后看编译器报告与 local load/store，最后看总时间。occupancy 上升本身不等于性能上升。",
+    "formula": "O_regs_avg = Br*Dv/consumer_threads\nBr=128,Dv=512,T=256 → 256\nBr=64,Dv=512,T=256 → 128\n减半来自完整配置中 Br 的变化，不是仅把 8×1 改成 4×2 的名字",
+    "flow": [
+      "分别估算 shared / registers",
+      "沿 D chunk 降搬运容量",
+      "选择 M/N 排布与 Br",
+      "合并行统计 / P 交接",
+      "检查 spill → 正确性 → 时间"
+    ],
+    "pitfall": "书中按 D 的切换阈值是该实现与设备的调参结果，不能作为所有 GPU 的固定阈值。低精度 causal 误差还需逐行检查。",
+    "hint": "Triton 对不同 Br 与 D chunk 做资源扫描；TileLang 对 M/N policy 变化画出 row ownership。至少包含 D=128/256/512 的语义参考和目标支持的大 D 路径，记录无法编译和 spill 配置。"
+  },
+  "38": {
+    "chapter": 38,
+    "slug": "cuda-fp4-attention-preprocess",
+    "terms": "smooth-Q|本路径对一组 query 减去公共均值向量\ndelta S|补回随 key 变化的分数修正\nNVFP4 workspace|packed data、局部 SF、全局 scale 和布局元数据\nperm-aware mask|按原始 key 坐标判断 causal，而非物理列号",
+    "intro": "从 FP8 降到 FP4，格点更稀疏，平滑和 scale 管理更重要。特别是平滑 Q 与平滑 K 的作用不同：减 Q 均值通常产生随 key 变化的项，不能像 K 的行常数那样直接被 softmax 消掉。",
+    "sections": "### 展开平滑恒等式\n令 Q′=Q-a，K′=K-b。原 QK.T=Q′K′.T+aK′.T+Q′b.T+ab.T。对某 query 行，后两项对所有 key 相同，可在 softmax 中消去；aK′.T 随 key 改变，必须补回 delta S。若 a 是 query 块均值，按块索引取对应修正。\n\n### Packed 数据和 scale 同步重排\nV 转置、列置换、padding 后，SF 必须跟随它代表的数据组。FP4 的逻辑元素指针不能简单按一个字节一个元素递增。先在 CPU 验证 pack/unpack，再检查设备 layout。\n\n### Causal 使用逻辑位置\n如果 key 列做了置换，物理第 j 列并不一定对应原 key j。mask 必须先恢复原始坐标再比较 query 位置。错误的 mask 在 dense 测试里不会暴露，因此两种模式都要测试。",
+    "formula": "Q=Q′+a，K=K′+b\nsoftmax(QK.T)=softmax(Q′K′.T+aK′.T)（忽略每行常数）\ndeltaS=a@K′.T，再统一乘 1/sqrt(D)\nFP4 byte_index=i//2；逻辑 i 与物理 byte 不能混同",
+    "flow": [
+      "统计 Q 块 / K 均值",
+      "平滑并生成 delta S",
+      "两级 scale + FP4 packing",
+      "数据/SF 同步置换",
+      "消费时恢复逻辑 mask / 修正"
+    ],
+    "pitfall": "平滑是某一实现的算法设计，不是 NVFP4 格式本身的强制要求。不要把原书实现的必须步骤泛化成所有 FP4 attention 的硬件规定。",
+    "hint": "Triton 和 TileLang 都先验证未量化的平滑恒等式，再插入 FP4。使用非零 Q/K 均值与 causal mask，故意省略 delta S 应被测试判错；然后验证数据与 SF 的置换还原。"
+  },
+  "39": {
+    "chapter": 39,
+    "slug": "cuda-fp4-attention-probability",
+    "terms": "未归一化 P|exp(score-running_max)，还未除最终 l\n一级 P scale|把 P 的范围扩展到 data×SF 的联合域\n二级 P scale|每组局部 FP8 scale，再配合 E2M1 数据\n在线重标定|running max 变化时同步调整旧分子与分母",
+    "intro": "P 在主循环中即时生成，分布从接近均匀到接近 one-hot 都可能出现。FP4 P 量化不仅舍入数据，还会舍入局部 scale。两级方案把局部 scale 放到更有分辨率的范围，但仍需验证整个 online 状态。",
+    "sections": "### 联合量程为什么出现 2688\nE2M1 的最大有限幅度为 6，E4M3FN scale 的最大有限值为 448，乘积为 2688。以当前 running max 为基准，当前 tile 的指数值最多为 1，但不保证一定有值等于 1。把未归一化 P 乘 2688 后，再进行每组 data/SF 量化。\n\n### 分母的定义不能悄悄变化\n精确 softmax 的 l 来自未量化指数和。如果分子使用量化后的 P，分母仍是精确 l，那么量化使输出成为近似；不能为了好看而改成量化 P 的和，却仍声称与原接口一致。若实现采用不同域的共同缩放，要明确写出分子分母的同一比例。\n\n### 逐 tile 检查状态\n每次 running max 改变，旧 u 和 l 按 alpha 重缩放，新 P 量化后进入 PV。保存每块后的 m/l/u、局部 scale、饱和与下溢数，可定位长序列累计误差。只测一个 tile 无法覆盖重缩放问题。",
+    "formula": "p=exp(score-m_new), 0≤p≤1\np_scaled=2688*p\nblock_scale=round_fp8(max(p_scaled)/6)\np_hat=decode_fp4(q)*block_scale/2688\nu_new=alpha*u_old+p_hat@V；l_new=alpha*l_old+sum(p)",
+    "flow": [
+      "更新 running max 与 alpha",
+      "生成未归一化 P",
+      "2688 放大 → 局部 SF + FP4",
+      "PV 累加并缩放旧 u",
+      "使用定义一致的 l 归一化"
+    ],
+    "pitfall": "2688 是这套格式与尺度设计的值，不是任意 FP4 格式通用常量。当前 tile 最大指数不一定为 1，不能每块重新假设它达满量程。",
+    "hint": "Triton 先软件量化 P 并用高精度 PV 定位误差；TileLang 再接 block-scaled PV。测试后续 tile 才出现大最大值、均匀长行、causal 首行与极小概率，报告每个阶段的误差。"
+  },
+  "40": {
+    "chapter": 40,
+    "slug": "cuda-benchmark-accuracy",
+    "terms": "kernel-only|仅主 kernel 的稳态设备时间\n端到端|应用必须执行的初始化、预处理、kernel、后处理范围\n误差分布|最大值、相对 L2、分位数与失败行，不能只报均值\n参照后端|明确实际执行的库/算法，不能只写 auto",
+    "intro": "最后一章把前面的学习变成可复现实验。一个有用的结论必须同时告诉读者：算了同一件事吗、结果误差怎样、计时范围是什么、在什么硬件和软件条件下成立。",
+    "sections": "### 先正确，后计时\n固定随机种子，覆盖边界、极值与业务形状。保存失败输入、配置和误差位置。原子输出要每次初始化；异步 GPU 运行要用正确设备事件和同步边界。JIT 编译、热身和实际计时分开。\n\n### 后端与输入必须固定\n基线库可能随 D、mask 或 dtype 选择不同算法。速度比突然上升时，先检查是不是基线变慢。记录实际后端、TF32/累加精度、是否 causal、是否包含量化，不把不同功能集合直接比较。\n\n### 汇报分布和完整成本\n重复测量并报告中位数与分位数，最小值可作辅助但不能独占结论。量化前处理占比为 f，主 kernel 加速 s 时，整体上限取决于 Amdahl 模型。记录温度、频率、功耗状态和 A/B 交错顺序，有助于解释漂移。",
+    "formula": "speedup = T_baseline/T_candidate\nT_e2e = T_prepare+T_kernel+T_finalize\nS_e2e = 1/(f+(1-f)/s)，f 为未被加速部分的基线时间占比\nf=0.4,s=2 → S_e2e=1/0.7≈1.429\nrelative_L2 = norm(y-y_ref)/max(norm(y_ref),epsilon)",
+    "flow": [
+      "冻结契约 / 版本 / 后端",
+      "边界与精度校验",
+      "热身与设备同步",
+      "重复 A/B 计时完整范围",
+      "保存分布、失败例与复现命令"
+    ],
+    "pitfall": "较宽容差不是正确性的豁免。软件 fallback、SKIP、编译成功、设备正确性通过和性能改进必须分列，任何一个都不能冒充另一个。",
+    "hint": "Triton 与 TileLang 接入同一个 harness，导出 JSON：设备、版本、shape、dtype、误差、kernel 与 e2e 时间。固定参照后端，保留失败配置；禁止把 CPU 时间或未同步 wall time 标成 CUDA kernel 延迟。"
+  }
+}

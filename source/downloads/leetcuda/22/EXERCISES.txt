@@ -1,0 +1,13 @@
+23. Copy 的归属：谁搬什么，搬到哪里
+
+本章可运行语义基线：含尾部的双射 gather；改变 thread/value 分工与 shared 中转是扩展题。
+
+Triton 比较连续与交错索引载入；TileLang 实现 global→shared→global 往返。输入用 arange 编码位置以定位搬错，测试 N=1/29/32/33，确保不存在重复写和越界。
+
+进阶验收：覆盖无遗漏、无非法重叠；对齐、向量宽度和尾部都可解释
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

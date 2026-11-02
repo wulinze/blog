@@ -1,0 +1,194 @@
+[
+  {
+    "label": "GEMM + bias(-10) + ReLU",
+    "steps": [
+      {
+        "title": "GEMM 累加器",
+        "values": [
+          [
+            4.0,
+            3.0
+          ],
+          [
+            10.0,
+            5.0
+          ]
+        ],
+        "detail": "先验证纯 GEMM。"
+      },
+      {
+        "title": "bias 后",
+        "values": [
+          [
+            -6.0,
+            -7.0
+          ],
+          [
+            0.0,
+            -5.0
+          ]
+        ],
+        "detail": "此小例子用同一 bias，GPU 练习要求逐列 bias。"
+      },
+      {
+        "title": "ReLU 后",
+        "values": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "detail": "激活属于 epilogue，必须计入所需延迟。"
+      }
+    ],
+    "check": "完整 epilogue 与手算四个输出一致。"
+  },
+  {
+    "label": "GEMM + bias(-2) + ReLU",
+    "steps": [
+      {
+        "title": "GEMM 累加器",
+        "values": [
+          [
+            4.0,
+            3.0
+          ],
+          [
+            10.0,
+            5.0
+          ]
+        ],
+        "detail": "先验证纯 GEMM。"
+      },
+      {
+        "title": "bias 后",
+        "values": [
+          [
+            2.0,
+            1.0
+          ],
+          [
+            8.0,
+            3.0
+          ]
+        ],
+        "detail": "此小例子用同一 bias，GPU 练习要求逐列 bias。"
+      },
+      {
+        "title": "ReLU 后",
+        "values": [
+          [
+            2.0,
+            1.0
+          ],
+          [
+            8.0,
+            3.0
+          ]
+        ],
+        "detail": "激活属于 epilogue，必须计入所需延迟。"
+      }
+    ],
+    "check": "完整 epilogue 与手算四个输出一致。"
+  },
+  {
+    "label": "GEMM + bias(0) + ReLU",
+    "steps": [
+      {
+        "title": "GEMM 累加器",
+        "values": [
+          [
+            4.0,
+            3.0
+          ],
+          [
+            10.0,
+            5.0
+          ]
+        ],
+        "detail": "先验证纯 GEMM。"
+      },
+      {
+        "title": "bias 后",
+        "values": [
+          [
+            4.0,
+            3.0
+          ],
+          [
+            10.0,
+            5.0
+          ]
+        ],
+        "detail": "此小例子用同一 bias，GPU 练习要求逐列 bias。"
+      },
+      {
+        "title": "ReLU 后",
+        "values": [
+          [
+            4.0,
+            3.0
+          ],
+          [
+            10.0,
+            5.0
+          ]
+        ],
+        "detail": "激活属于 epilogue，必须计入所需延迟。"
+      }
+    ],
+    "check": "完整 epilogue 与手算四个输出一致。"
+  },
+  {
+    "label": "GEMM + bias(5) + ReLU",
+    "steps": [
+      {
+        "title": "GEMM 累加器",
+        "values": [
+          [
+            4.0,
+            3.0
+          ],
+          [
+            10.0,
+            5.0
+          ]
+        ],
+        "detail": "先验证纯 GEMM。"
+      },
+      {
+        "title": "bias 后",
+        "values": [
+          [
+            9.0,
+            8.0
+          ],
+          [
+            15.0,
+            10.0
+          ]
+        ],
+        "detail": "此小例子用同一 bias，GPU 练习要求逐列 bias。"
+      },
+      {
+        "title": "ReLU 后",
+        "values": [
+          [
+            9.0,
+            8.0
+          ],
+          [
+            15.0,
+            10.0
+          ]
+        ],
+        "detail": "激活属于 epilogue，必须计入所需延迟。"
+      }
+    ],
+    "check": "完整 epilogue 与手算四个输出一致。"
+  }
+]

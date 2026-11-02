@@ -1,0 +1,126 @@
+[
+  {
+    "label": "QK scale 乘积 / sqrt(D)=0.25",
+    "steps": [
+      {
+        "title": "正确 score 缩放",
+        "values": [
+          -0.25,
+          0.0,
+          0.5
+        ],
+        "detail": "先恢复 logits 尺度，再 softmax。"
+      },
+      {
+        "title": "自然指数与 exp2",
+        "values": {
+          "O_exp": 5.242437733960137,
+          "O_exp2": 5.242437733960137
+        },
+        "detail": "log2(e) 只转换指数底，不改变数学。"
+      },
+      {
+        "title": "错误把 scale 移出 softmax",
+        "values": {
+          "wrong": 1.81228718488079,
+          "difference": -3.4301505490793467
+        },
+        "detail": "scale=1 恰好不暴露错误，必须多 case。"
+      }
+    ],
+    "check": "exp 与 exp2 路径等价；演示非法外提反例。"
+  },
+  {
+    "label": "QK scale 乘积 / sqrt(D)=1",
+    "steps": [
+      {
+        "title": "正确 score 缩放",
+        "values": [
+          -1,
+          0,
+          2
+        ],
+        "detail": "先恢复 logits 尺度，再 softmax。"
+      },
+      {
+        "title": "自然指数与 exp2",
+        "values": {
+          "O_exp": 7.24914873952316,
+          "O_exp2": 7.24914873952316
+        },
+        "detail": "log2(e) 只转换指数底，不改变数学。"
+      },
+      {
+        "title": "错误把 scale 移出 softmax",
+        "values": {
+          "wrong": 7.24914873952316,
+          "difference": 0.0
+        },
+        "detail": "scale=1 恰好不暴露错误，必须多 case。"
+      }
+    ],
+    "check": "exp 与 exp2 路径等价；演示非法外提反例。"
+  },
+  {
+    "label": "QK scale 乘积 / sqrt(D)=2",
+    "steps": [
+      {
+        "title": "正确 score 缩放",
+        "values": [
+          -2,
+          0,
+          4
+        ],
+        "detail": "先恢复 logits 尺度，再 softmax。"
+      },
+      {
+        "title": "自然指数与 exp2",
+        "values": {
+          "O_exp": 7.9112320545795445,
+          "O_exp2": 7.9112320545795445
+        },
+        "detail": "log2(e) 只转换指数底，不改变数学。"
+      },
+      {
+        "title": "错误把 scale 移出 softmax",
+        "values": {
+          "wrong": 14.49829747904632,
+          "difference": 6.5870654244667755
+        },
+        "detail": "scale=1 恰好不暴露错误，必须多 case。"
+      }
+    ],
+    "check": "exp 与 exp2 路径等价；演示非法外提反例。"
+  },
+  {
+    "label": "QK scale 乘积 / sqrt(D)=4",
+    "steps": [
+      {
+        "title": "正确 score 缩放",
+        "values": [
+          -4,
+          0,
+          8
+        ],
+        "detail": "先恢复 logits 尺度，再 softmax。"
+      },
+      {
+        "title": "自然指数与 exp2",
+        "values": {
+          "O_exp": 7.998615612918014,
+          "O_exp2": 7.998615612918014
+        },
+        "detail": "log2(e) 只转换指数底，不改变数学。"
+      },
+      {
+        "title": "错误把 scale 移出 softmax",
+        "values": {
+          "wrong": 28.99659495809264,
+          "difference": 20.997979345174627
+        },
+        "detail": "scale=1 恰好不暴露错误，必须多 case。"
+      }
+    ],
+    "check": "exp 与 exp2 路径等价；演示非法外提反例。"
+  }
+]

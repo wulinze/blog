@@ -1,0 +1,7 @@
+{
+  "repo": "https://github.com/xlite-dev/LeetCUDA",
+  "commit": "3b52c5cd3332c5e992c7aef63087d43f67f23b8e",
+  "kind": "book-test",
+  "test": "ch13",
+  "requires_arch": "sm_90a"
+}

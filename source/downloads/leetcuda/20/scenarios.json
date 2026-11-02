@@ -1,0 +1,154 @@
+[
+  {
+    "label": "D=5,D_chunk=1",
+    "steps": [
+      {
+        "title": "D chunk [0,1)",
+        "values": [
+          2.0,
+          0.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "D chunk [1,2)",
+        "values": [
+          2.0,
+          4.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "D chunk [2,3)",
+        "values": [
+          1.0,
+          3.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "D chunk [3,4)",
+        "values": [
+          -2.0,
+          6.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "D chunk [4,5)",
+        "values": [
+          2.0,
+          4.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "完整 D 后的概率",
+        "values": [
+          0.29019705624311065,
+          0.7098029437568892
+        ],
+        "detail": "缩放使用完整 D，不是 chunk 宽度。"
+      }
+    ],
+    "check": "所有 chunk 方案等于完整点积，尾 chunk 正确。"
+  },
+  {
+    "label": "D=5,D_chunk=2",
+    "steps": [
+      {
+        "title": "D chunk [0,2)",
+        "values": [
+          2.0,
+          4.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "D chunk [2,4)",
+        "values": [
+          -2.0,
+          6.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "D chunk [4,5)",
+        "values": [
+          2.0,
+          4.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "完整 D 后的概率",
+        "values": [
+          0.29019705624311065,
+          0.7098029437568892
+        ],
+        "detail": "缩放使用完整 D，不是 chunk 宽度。"
+      }
+    ],
+    "check": "所有 chunk 方案等于完整点积，尾 chunk 正确。"
+  },
+  {
+    "label": "D=5,D_chunk=3",
+    "steps": [
+      {
+        "title": "D chunk [0,3)",
+        "values": [
+          1.0,
+          3.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "D chunk [3,5)",
+        "values": [
+          2.0,
+          4.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "完整 D 后的概率",
+        "values": [
+          0.29019705624311065,
+          0.7098029437568892
+        ],
+        "detail": "缩放使用完整 D，不是 chunk 宽度。"
+      }
+    ],
+    "check": "所有 chunk 方案等于完整点积，尾 chunk 正确。"
+  },
+  {
+    "label": "D=5,D_chunk=4",
+    "steps": [
+      {
+        "title": "D chunk [0,4)",
+        "values": [
+          -2.0,
+          6.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "D chunk [4,5)",
+        "values": [
+          2.0,
+          4.0
+        ],
+        "detail": "仍是 partial score；尚不可 softmax。"
+      },
+      {
+        "title": "完整 D 后的概率",
+        "values": [
+          0.29019705624311065,
+          0.7098029437568892
+        ],
+        "detail": "缩放使用完整 D，不是 chunk 宽度。"
+      }
+    ],
+    "check": "所有 chunk 方案等于完整点积，尾 chunk 正确。"
+  }
+]

@@ -1,0 +1,13 @@
+11. GEMM：block tile 与寄存器 tile
+
+本章可运行语义基线：有尾块的 FP32 GEMM；Triton 使用 dot，TileLang 使用直白标量 FMA。
+
+Triton tl.dot 与 TileLang T.gemm 都先做 FP16 输入、FP32 累加基线。用 M=33,N=49,K=65 验证尾块，再扫 BM/BN/BK。额外写 thread tile 的 CPU 索引枚举，确认每个输出只有一个 owner。
+
+进阶验收：非方阵和尾块正确；解释 BK 与输出 tile 改变的不同资源
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

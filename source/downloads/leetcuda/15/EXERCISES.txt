@@ -1,0 +1,13 @@
+16. SM120 的生产消费流水
+
+本章可运行语义基线：同步 GEMM 数值基线；SM120 角色分工由下面 CUDA demo 提供。
+
+两种语言都先保持相同数学与 tile，比较统一流水和可支持的分工路径。对不支持的配置明确 SKIP，不能回退后还写原路径通过。验收需包含生成指令、资源报告及 barrier 的参与计数。
+
+进阶验收：能力核验在前；不能照搬 Hopper WGMMA，资源池预算与死锁条件须可解释
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

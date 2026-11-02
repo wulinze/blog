@@ -1,0 +1,13 @@
+26. 布局驱动的 GEMM 工程
+
+本章可运行语义基线：GEMM + 逐列 bias + ReLU；staging 和向量写回是扩展题。
+
+Triton tl.dot 后融合列 bias+ReLU；TileLang T.gemm 后显式 epilogue。先测非方阵和尾块，再比较是否 staging、不同 stages；保留原始输入，验证 beta 非零时没有错误覆盖。
+
+进阶验收：核心、epilogue 与尾块逐层校验，源码/配置/版本一起保存
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

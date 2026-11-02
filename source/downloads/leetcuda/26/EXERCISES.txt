@@ -1,0 +1,13 @@
+27. Attention 实现对照：统一流水、角色分工与双 consumer
+
+本章可运行语义基线：小尺寸 attention 语义基线，包含明确的 top-left causal mask；各章专用流水、布局与分工见下面的固定版本 CUDA demo。
+
+两语言均先跑同一个测试矩阵：N=1/65/257、D=64/128、dense/causal。只改变一项流水开关，记录实际选择的内核，不允许静默 fallback 冒充指定路径。
+
+进阶验收：统一 mask、精度、计时范围；不把框架差异都归因于某一条指令
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

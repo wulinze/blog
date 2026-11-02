@@ -1,0 +1,13 @@
+33. NVFP4：两级 scale 与打包
+
+本章可运行语义基线：E2M1 数据舍入基线，scale 暂用 FP32；CPU demo 另验证两级 SF 舍入与 packing，硬件 NVFP4 见下面专用 demo。
+
+Triton 与 TileLang 先做软件码点选择、uint8 pack/unpack；再用受支持的 scaled dot。测试 0、正负中点、极值、奇数长度及零组。字节一致与允许的重建误差分别验收。
+
+进阶验收：逐 byte round-trip；零值、极值、奇数长度和饱和策略均有定义
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

@@ -1,0 +1,13 @@
+38. FP8 大 D：Split-D 与并行布局
+
+本章可运行语义基线：D=64/128/256/512 的分块 QK attention；M4N2 排布由专用 CUDA 路径提供。
+
+Triton 对不同 Br 与 D chunk 做资源扫描；TileLang 对 M/N policy 变化画出 row ownership。至少包含 D=128/256/512 的语义参考和目标支持的大 D 路径，记录无法编译和 spill 配置。
+
+进阶验收：并行度、spill 与耗时分别记录；不能仅看 occupancy
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

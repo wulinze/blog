@@ -1,0 +1,13 @@
+9. RoPE 与转置：数据重排为何影响性能
+
+本章可运行语义基线：矩形转置的 gather 语义；RoPE 和 shared padding 是扩展题。
+
+Triton 实现两种 RoPE 配对和带 mask 转置；TileLang 实现 shared 中转，比较 stride 32/33。先检查范数，再检查相对位置点积；转置用 17×35，做两次必须回到原矩阵。
+
+进阶验收：旋转范数近似保持，转置两次还原；手算真实 lane 地址后再判断冲突
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

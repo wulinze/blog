@@ -1,0 +1,130 @@
+[
+  {
+    "label": "producer=128×32,consumer=128×128",
+    "steps": [
+      {
+        "title": "角色寄存器概念预算",
+        "values": {
+          "producer": 4096,
+          "consumer": 16384,
+          "total": 20480
+        },
+        "detail": "未计分配粒度；预算 65536 仅为演示参数，不代表所有 GPU。"
+      },
+      {
+        "title": "是否超过教学预算",
+        "values": {
+          "budget": 65536,
+          "fits": true,
+          "remaining": 45056
+        },
+        "detail": "超预算意味着需要改配置；不代表编译器必然采取哪种处理。"
+      },
+      {
+        "title": "buffer 协议仍需独立满足",
+        "values": {
+          "producer": "wait empty → TMA",
+          "consumer": "wait full → read/MMA → release"
+        },
+        "detail": "寄存器够用不保证没有同步死锁。"
+      }
+    ],
+    "check": "按角色计算预算；超额配置明确标出，不当成可运行硬件配置。"
+  },
+  {
+    "label": "producer=128×32,consumer=256×128",
+    "steps": [
+      {
+        "title": "角色寄存器概念预算",
+        "values": {
+          "producer": 4096,
+          "consumer": 32768,
+          "total": 36864
+        },
+        "detail": "未计分配粒度；预算 65536 仅为演示参数，不代表所有 GPU。"
+      },
+      {
+        "title": "是否超过教学预算",
+        "values": {
+          "budget": 65536,
+          "fits": true,
+          "remaining": 28672
+        },
+        "detail": "超预算意味着需要改配置；不代表编译器必然采取哪种处理。"
+      },
+      {
+        "title": "buffer 协议仍需独立满足",
+        "values": {
+          "producer": "wait empty → TMA",
+          "consumer": "wait full → read/MMA → release"
+        },
+        "detail": "寄存器够用不保证没有同步死锁。"
+      }
+    ],
+    "check": "按角色计算预算；超额配置明确标出，不当成可运行硬件配置。"
+  },
+  {
+    "label": "producer=128×32,consumer=256×192",
+    "steps": [
+      {
+        "title": "角色寄存器概念预算",
+        "values": {
+          "producer": 4096,
+          "consumer": 49152,
+          "total": 53248
+        },
+        "detail": "未计分配粒度；预算 65536 仅为演示参数，不代表所有 GPU。"
+      },
+      {
+        "title": "是否超过教学预算",
+        "values": {
+          "budget": 65536,
+          "fits": true,
+          "remaining": 12288
+        },
+        "detail": "超预算意味着需要改配置；不代表编译器必然采取哪种处理。"
+      },
+      {
+        "title": "buffer 协议仍需独立满足",
+        "values": {
+          "producer": "wait empty → TMA",
+          "consumer": "wait full → read/MMA → release"
+        },
+        "detail": "寄存器够用不保证没有同步死锁。"
+      }
+    ],
+    "check": "按角色计算预算；超额配置明确标出，不当成可运行硬件配置。"
+  },
+  {
+    "label": "producer=128×32,consumer=384×192",
+    "steps": [
+      {
+        "title": "角色寄存器概念预算",
+        "values": {
+          "producer": 4096,
+          "consumer": 73728,
+          "total": 77824
+        },
+        "detail": "未计分配粒度；预算 65536 仅为演示参数，不代表所有 GPU。"
+      },
+      {
+        "title": "是否超过教学预算",
+        "values": {
+          "budget": 65536,
+          "fits": false,
+          "remaining": -12288
+        },
+        "detail": "超预算意味着需要改配置；不代表编译器必然采取哪种处理。"
+      },
+      {
+        "title": "buffer 协议仍需独立满足",
+        "values": {
+          "producer": "wait empty → TMA",
+          "consumer": "wait full → read/MMA → release"
+        },
+        "detail": "寄存器够用不保证没有同步死锁。"
+      }
+    ],
+    "check": "按角色计算预算；超额配置明确标出，不当成可运行硬件配置。"
+  }
+]

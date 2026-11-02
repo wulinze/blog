@@ -1,0 +1,198 @@
+[
+  {
+    "label": "FP4 输入 [0, 0, 0]",
+    "steps": [
+      {
+        "title": "block scale 与编码",
+        "values": {
+          "scale": 1.0,
+          "codes": [
+            0,
+            0,
+            0
+          ]
+        },
+        "detail": "global scale=1；本例逻辑组不足 16 时仍使用同组 scale。"
+      },
+      {
+        "title": "打包 byte",
+        "values": [
+          0,
+          0
+        ],
+        "detail": "低 nibble 是偶数元素；奇数尾部高 nibble=0。"
+      },
+      {
+        "title": "重建",
+        "values": {
+          "x_hat": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "error": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "detail": "数值误差与字节 round-trip 是两项独立验收。"
+      }
+    ],
+    "check": "所有 nibble pack/unpack 精确还原；实际硬件 SF layout 未模拟。"
+  },
+  {
+    "label": "FP4 输入 [0.5, 1, 1.5, 2, 3, 4, 6]",
+    "steps": [
+      {
+        "title": "block scale 与编码",
+        "values": {
+          "scale": 1.0,
+          "codes": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        "detail": "global scale=1；本例逻辑组不足 16 时仍使用同组 scale。"
+      },
+      {
+        "title": "打包 byte",
+        "values": [
+          33,
+          67,
+          101,
+          7
+        ],
+        "detail": "低 nibble 是偶数元素；奇数尾部高 nibble=0。"
+      },
+      {
+        "title": "重建",
+        "values": {
+          "x_hat": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            3.0,
+            4.0,
+            6.0
+          ],
+          "error": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "detail": "数值误差与字节 round-trip 是两项独立验收。"
+      }
+    ],
+    "check": "所有 nibble pack/unpack 精确还原；实际硬件 SF layout 未模拟。"
+  },
+  {
+    "label": "FP4 输入 [-6, -2, -0.5, 0, 1]",
+    "steps": [
+      {
+        "title": "block scale 与编码",
+        "values": {
+          "scale": 1.0,
+          "codes": [
+            15,
+            12,
+            9,
+            0,
+            2
+          ]
+        },
+        "detail": "global scale=1；本例逻辑组不足 16 时仍使用同组 scale。"
+      },
+      {
+        "title": "打包 byte",
+        "values": [
+          207,
+          9,
+          2
+        ],
+        "detail": "低 nibble 是偶数元素；奇数尾部高 nibble=0。"
+      },
+      {
+        "title": "重建",
+        "values": {
+          "x_hat": [
+            -6.0,
+            -2.0,
+            -0.5,
+            0.0,
+            1.0
+          ],
+          "error": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "detail": "数值误差与字节 round-trip 是两项独立验收。"
+      }
+    ],
+    "check": "所有 nibble pack/unpack 精确还原；实际硬件 SF layout 未模拟。"
+  },
+  {
+    "label": "FP4 输入 [0.1, 0.3, 0.7, 2.7, 9]",
+    "steps": [
+      {
+        "title": "block scale 与编码",
+        "values": {
+          "scale": 1.5,
+          "codes": [
+            0,
+            0,
+            1,
+            4,
+            7
+          ]
+        },
+        "detail": "global scale=1；本例逻辑组不足 16 时仍使用同组 scale。"
+      },
+      {
+        "title": "打包 byte",
+        "values": [
+          0,
+          65,
+          7
+        ],
+        "detail": "低 nibble 是偶数元素；奇数尾部高 nibble=0。"
+      },
+      {
+        "title": "重建",
+        "values": {
+          "x_hat": [
+            0.0,
+            0.0,
+            0.75,
+            3.0,
+            9.0
+          ],
+          "error": [
+            -0.1,
+            -0.3,
+            0.050000000000000044,
+            0.2999999999999998,
+            0.0
+          ]
+        },
+        "detail": "数值误差与字节 round-trip 是两项独立验收。"
+      }
+    ],
+    "check": "所有 nibble pack/unpack 精确还原；实际硬件 SF layout 未模拟。"
+  }
+]

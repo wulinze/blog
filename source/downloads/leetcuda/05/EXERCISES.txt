@@ -1,0 +1,13 @@
+6. 稳定 Softmax：从整行到在线状态
+
+本章可运行语义基线：短行稳定 softmax；长行 online 两遍实现是扩展题。
+
+Triton 用 tl.max/tl.sum 做单行版本，尾部载入 -inf；TileLang 用二维 fragment 和 dim=1 归约。先验证宽度 1、17、127、129，再把极大偏置加到输入上，检查概率不变。扩展实现长行两遍 online，并把第二遍成本算入时间。
+
+进阶验收：极大输入不溢出，行和接近 1；空行与全 mask 行有明确约定
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

@@ -1,0 +1,130 @@
+[
+  {
+    "label": "shape=(2,3),stride=(3,1)",
+    "steps": [
+      {
+        "title": "坐标 → offset",
+        "values": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            3,
+            4,
+            5
+          ]
+        ],
+        "detail": "shape 定义合法坐标，stride 决定地址。"
+      },
+      {
+        "title": "覆盖情况",
+        "values": {
+          "logical_elements": 6,
+          "unique_offsets": 6,
+          "span": 6,
+          "aliases": 0
+        },
+        "detail": "alias 布局不能直接当唯一写者的 copy 输出布局。"
+      }
+    ],
+    "check": "枚举直接显示连续、padding、列主序和别名四种情形。"
+  },
+  {
+    "label": "shape=(2,3),stride=(4,1)",
+    "steps": [
+      {
+        "title": "坐标 → offset",
+        "values": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            4,
+            5,
+            6
+          ]
+        ],
+        "detail": "shape 定义合法坐标，stride 决定地址。"
+      },
+      {
+        "title": "覆盖情况",
+        "values": {
+          "logical_elements": 6,
+          "unique_offsets": 6,
+          "span": 7,
+          "aliases": 0
+        },
+        "detail": "alias 布局不能直接当唯一写者的 copy 输出布局。"
+      }
+    ],
+    "check": "枚举直接显示连续、padding、列主序和别名四种情形。"
+  },
+  {
+    "label": "shape=(2,3),stride=(1,2)",
+    "steps": [
+      {
+        "title": "坐标 → offset",
+        "values": [
+          [
+            0,
+            2,
+            4
+          ],
+          [
+            1,
+            3,
+            5
+          ]
+        ],
+        "detail": "shape 定义合法坐标，stride 决定地址。"
+      },
+      {
+        "title": "覆盖情况",
+        "values": {
+          "logical_elements": 6,
+          "unique_offsets": 6,
+          "span": 6,
+          "aliases": 0
+        },
+        "detail": "alias 布局不能直接当唯一写者的 copy 输出布局。"
+      }
+    ],
+    "check": "枚举直接显示连续、padding、列主序和别名四种情形。"
+  },
+  {
+    "label": "shape=(2,3),stride=(0,1)",
+    "steps": [
+      {
+        "title": "坐标 → offset",
+        "values": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            0,
+            1,
+            2
+          ]
+        ],
+        "detail": "shape 定义合法坐标，stride 决定地址。"
+      },
+      {
+        "title": "覆盖情况",
+        "values": {
+          "logical_elements": 6,
+          "unique_offsets": 3,
+          "span": 3,
+          "aliases": 3
+        },
+        "detail": "alias 布局不能直接当唯一写者的 copy 输出布局。"
+      }
+    ],
+    "check": "枚举直接显示连续、padding、列主序和别名四种情形。"
+  }
+]

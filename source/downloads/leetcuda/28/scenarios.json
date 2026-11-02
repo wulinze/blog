@@ -1,0 +1,163 @@
+[
+  {
+    "label": "tasks=1,workers=3",
+    "steps": [
+      {
+        "title": "静态任务分配",
+        "values": [
+          [
+            0
+          ],
+          [],
+          []
+        ],
+        "detail": "第 p 行 worker 处理 p,p+P,...。"
+      },
+      {
+        "title": "每 worker 任务数",
+        "values": [
+          1,
+          0,
+          0
+        ],
+        "detail": "真实 causal 任务耗时可能不同，数量均匀不等于时间均匀。"
+      },
+      {
+        "title": "覆盖验收",
+        "values": [
+          0
+        ],
+        "detail": "每个任务恰好一次；新任务必须重置 m/denominator/u。"
+      }
+    ],
+    "check": "T<P、T=P 和不整除尾波均覆盖正确。"
+  },
+  {
+    "label": "tasks=2,workers=3",
+    "steps": [
+      {
+        "title": "静态任务分配",
+        "values": [
+          [
+            0
+          ],
+          [
+            1
+          ],
+          []
+        ],
+        "detail": "第 p 行 worker 处理 p,p+P,...。"
+      },
+      {
+        "title": "每 worker 任务数",
+        "values": [
+          1,
+          1,
+          0
+        ],
+        "detail": "真实 causal 任务耗时可能不同，数量均匀不等于时间均匀。"
+      },
+      {
+        "title": "覆盖验收",
+        "values": [
+          0,
+          1
+        ],
+        "detail": "每个任务恰好一次；新任务必须重置 m/denominator/u。"
+      }
+    ],
+    "check": "T<P、T=P 和不整除尾波均覆盖正确。"
+  },
+  {
+    "label": "tasks=3,workers=3",
+    "steps": [
+      {
+        "title": "静态任务分配",
+        "values": [
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            2
+          ]
+        ],
+        "detail": "第 p 行 worker 处理 p,p+P,...。"
+      },
+      {
+        "title": "每 worker 任务数",
+        "values": [
+          1,
+          1,
+          1
+        ],
+        "detail": "真实 causal 任务耗时可能不同，数量均匀不等于时间均匀。"
+      },
+      {
+        "title": "覆盖验收",
+        "values": [
+          0,
+          1,
+          2
+        ],
+        "detail": "每个任务恰好一次；新任务必须重置 m/denominator/u。"
+      }
+    ],
+    "check": "T<P、T=P 和不整除尾波均覆盖正确。"
+  },
+  {
+    "label": "tasks=10,workers=3",
+    "steps": [
+      {
+        "title": "静态任务分配",
+        "values": [
+          [
+            0,
+            3,
+            6,
+            9
+          ],
+          [
+            1,
+            4,
+            7
+          ],
+          [
+            2,
+            5,
+            8
+          ]
+        ],
+        "detail": "第 p 行 worker 处理 p,p+P,...。"
+      },
+      {
+        "title": "每 worker 任务数",
+        "values": [
+          4,
+          3,
+          3
+        ],
+        "detail": "真实 causal 任务耗时可能不同，数量均匀不等于时间均匀。"
+      },
+      {
+        "title": "覆盖验收",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "detail": "每个任务恰好一次；新任务必须重置 m/denominator/u。"
+      }
+    ],
+    "check": "T<P、T=P 和不整除尾波均覆盖正确。"
+  }
+]

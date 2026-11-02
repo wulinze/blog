@@ -1,0 +1,13 @@
+15. TMA 与 WGMMA：Hopper 的完成协议
+
+本章可运行语义基线：同步 GEMM 数值基线；真正 TMA/WGMMA 由下面 Hopper 专用 CUDA demo 提供。
+
+Triton 先做 descriptor copy 的输入输出等价测试，再研究 Hopper matmul 教程；TileLang 先 TMA copy 再接 gemm。均先验证 1 个 tile、2 个 tile、奇数 tile，记录每次 slot/phase。原书 WGMMA 最小测试只在 sm_90a 目标运行。
+
+进阶验收：列出 arrive、expected bytes、完成和复用事件；目标硬件不支持时仅做协议模拟
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

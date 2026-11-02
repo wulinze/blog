@@ -1,0 +1,13 @@
+31. FP8 的格式与量化前处理
+
+本章可运行语义基线：逐行 E4M3FN 量化并反量化，返回 FP32 重建值；保留编码和分组 scale 是扩展题。
+
+Triton 写 amax+缩放+转换，TileLang 融合同样前处理。与软件可表示值表逐项比较，覆盖零、次正规附近、舍入中点、448 和离群值。报告 max_abs 与饱和计数，不只 allclose。
+
+进阶验收：重建误差与饱和计数；明确舍入和 scale 方向，先不要求 Tensor Core
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

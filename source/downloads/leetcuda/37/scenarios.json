@@ -1,0 +1,114 @@
+[
+  {
+    "label": "Dv=128,consumer_threads=256",
+    "steps": [
+      {
+        "title": "Br=128 的累加器下界",
+        "values": {
+          "values_per_thread": 64
+        },
+        "detail": "忽略全部其它临时寄存器。"
+      },
+      {
+        "title": "Br=64 的累加器下界",
+        "values": {
+          "values_per_thread": 32
+        },
+        "detail": "下降来自实际输出块减小。"
+      },
+      {
+        "title": "代价表",
+        "values": {
+          "Q_CTA_count_ratio": 2,
+          "new_cost": "跨组统计 / P shared 交接 / 更多任务"
+        },
+        "detail": "仅更改布局名称并不改变元素总数。"
+      }
+    ],
+    "check": "寄存器逻辑下界按真实 tile 计算，代价单独列出。"
+  },
+  {
+    "label": "Dv=256,consumer_threads=256",
+    "steps": [
+      {
+        "title": "Br=128 的累加器下界",
+        "values": {
+          "values_per_thread": 128
+        },
+        "detail": "忽略全部其它临时寄存器。"
+      },
+      {
+        "title": "Br=64 的累加器下界",
+        "values": {
+          "values_per_thread": 64
+        },
+        "detail": "下降来自实际输出块减小。"
+      },
+      {
+        "title": "代价表",
+        "values": {
+          "Q_CTA_count_ratio": 2,
+          "new_cost": "跨组统计 / P shared 交接 / 更多任务"
+        },
+        "detail": "仅更改布局名称并不改变元素总数。"
+      }
+    ],
+    "check": "寄存器逻辑下界按真实 tile 计算，代价单独列出。"
+  },
+  {
+    "label": "Dv=512,consumer_threads=256",
+    "steps": [
+      {
+        "title": "Br=128 的累加器下界",
+        "values": {
+          "values_per_thread": 256
+        },
+        "detail": "忽略全部其它临时寄存器。"
+      },
+      {
+        "title": "Br=64 的累加器下界",
+        "values": {
+          "values_per_thread": 128
+        },
+        "detail": "下降来自实际输出块减小。"
+      },
+      {
+        "title": "代价表",
+        "values": {
+          "Q_CTA_count_ratio": 2,
+          "new_cost": "跨组统计 / P shared 交接 / 更多任务"
+        },
+        "detail": "仅更改布局名称并不改变元素总数。"
+      }
+    ],
+    "check": "寄存器逻辑下界按真实 tile 计算，代价单独列出。"
+  },
+  {
+    "label": "Dv=1024,consumer_threads=256",
+    "steps": [
+      {
+        "title": "Br=128 的累加器下界",
+        "values": {
+          "values_per_thread": 512
+        },
+        "detail": "忽略全部其它临时寄存器。"
+      },
+      {
+        "title": "Br=64 的累加器下界",
+        "values": {
+          "values_per_thread": 256
+        },
+        "detail": "下降来自实际输出块减小。"
+      },
+      {
+        "title": "代价表",
+        "values": {
+          "Q_CTA_count_ratio": 2,
+          "new_cost": "跨组统计 / P shared 交接 / 更多任务"
+        },
+        "detail": "仅更改布局名称并不改变元素总数。"
+      }
+    ],
+    "check": "寄存器逻辑下界按真实 tile 计算，代价单独列出。"
+  }
+]

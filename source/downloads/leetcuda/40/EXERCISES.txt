@@ -1,0 +1,13 @@
+41. 基准与精度：把学习结果变成可复现实验
+
+本章可运行语义基线：相同输入契约的 attention + 设备事件计时，输出误差和完整语义基线时间。
+
+Triton 与 TileLang 接入同一个 harness，导出 JSON：设备、版本、shape、dtype、误差、kernel 与 e2e 时间。固定参照后端，保留失败配置；禁止把 CPU 时间或未同步 wall time 标成 CUDA kernel 延迟。
+
+进阶验收：同时交付正确性、精度分布、端到端时间、条件和失败案例
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

@@ -1,0 +1,483 @@
+[
+  {
+    "slug": "cuda-vector-atomic",
+    "title": "（五）访问粒度与原子冲突",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "lane → 元素地址",
+      "地址 → 32B sector",
+      "连续 / 跨距请求对照",
+      "输入 → 局部 histogram",
+      "全局合并 → 总数校验"
+    ],
+    "boundary": "4 sector 的理想值只适用于这里的 32 个活跃 lane、每 lane 4 字节且对齐的访问。不要把 float4 的 16 sector 直接判为合并失败。原子吞吐高低必须结合热点分布；不能拿一组均匀随机输入代替全部应用。"
+  },
+  {
+    "slug": "cuda-softmax",
+    "title": "（六）稳定 Softmax",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "读一块 logits",
+      "求块最大值",
+      "更新 m，缩放旧 l",
+      "累加新指数和",
+      "最终状态 → 概率输出"
+    ],
+    "boundary": "本 demo 约定全 mask 行输出全零，普通有效行必须有限且行和约为 1。该约定需要接口显式说明，不能让全 -inf 行自然产生 NaN。"
+  },
+  {
+    "slug": "cuda-lse-merge",
+    "title": "（七）LSE 与注意力状态合并",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "KV 按 key 分段",
+      "每段完整 QK + softmax",
+      "输出 O 与 LSE",
+      "稳定指数权重",
+      "加权合并 O / 合并 LSE"
+    ],
+    "boundary": "LSE 不是 (m,l) 的可逆编码。同一个 LSE 可对应不同的 m 和 l；它对合并足够，但不保留全部状态细节。使用 exp2 的实现要先统一对数底。"
+  },
+  {
+    "slug": "cuda-normalization",
+    "title": "（八）RMSNorm 与 LayerNorm",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "读取一行与有效 mask",
+      "求均值 / 平方均值",
+      "LN 再求中心化方差",
+      "广播倒数平方根",
+      "gamma / beta → 写回"
+    ],
+    "boundary": "补零可以用于 sum，但方差中无效位置不能参与 (0-mu)²；归约前必须再屏蔽。eps 既不是根号外相加，也不是每个元素平方后单独相加再除错次数。"
+  },
+  {
+    "slug": "cuda-rope-transpose",
+    "title": "（九）RoPE 与转置",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "特征配对 / 矩阵坐标",
+      "RoPE 读一对并旋转",
+      "转置合并读 → shared",
+      "屏障 → 换线程读取",
+      "合并写出并检查尾部"
+    ],
+    "boundary": "padding 不总是最优；额外 shared 可能降低可驻留 CTA。旋转的相邻配对和半区配对都合理，但必须匹配模型权重的约定。"
+  },
+  {
+    "slug": "cuda-gemv",
+    "title": "（十）GEMV",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "选输出行 / 行组",
+      "lane 沿 K 连续读取",
+      "线程局部乘加",
+      "组内归约且隔离行",
+      "唯一 owner 写 y"
+    ],
+    "boundary": "AI 的“x 只读一次”是逻辑或理想复用口径；每个 CTA 的请求可能重复。不要因此认定 kernel 内优化向量复用没有意义。"
+  },
+  {
+    "slug": "cuda-gemm-tiling",
+    "title": "（十一）GEMM",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "CTA 选择 C 子块",
+      "合并加载 A/B → shared",
+      "等待数据就绪",
+      "寄存器 tile 沿 BK 累加",
+      "等待读完 → 下一块 / 写 C"
+    ],
+    "boundary": "上式是 block 请求层的模型，不是无条件的 DRAM 流量。分块不会改变矩阵乘定义；尾块的 A/B 填 0，C 越界写入必须屏蔽。"
+  },
+  {
+    "slug": "cuda-tf32-pipeline",
+    "title": "（十二）精度与异步搬运",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "先核对输入精度",
+      "填充 slot 0",
+      "提前加载 slot 1",
+      "wait → 计算当前 slot",
+      "读者完成 → 复用槽 / 排空"
+    ],
+    "boundary": "不能把“一条矩阵指令的 FLOPs”直接当成一个时钟的吞吐。指令延迟、发射率、硬件通路和资源限制都需要实际设备上的证据。"
+  },
+  {
+    "slug": "cuda-mma-fragments",
+    "title": "（十三）MMA 与 fragment",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "global 的逻辑 A/B",
+      "shared 的物理布局",
+      "ldmatrix → A/B fragment",
+      "warp MMA → C fragment",
+      "坐标映射 → 输出矩阵"
+    ],
+    "boundary": "WMMA 的不透明 fragment 与 PTX 指定的 fragment 不可混为一谈。原书某些路径采用 FP16 累加，本学习基线默认 FP32；必须注明差异再比较精度或性能。"
+  },
+  {
+    "slug": "cuda-swizzle",
+    "title": "（十四）布局与调度",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "确认冲突在哪一层",
+      "枚举 shared 地址与逆映射",
+      "独立测试寄存器双缓冲",
+      "独立测试 CTA ordering",
+      "正确性 → 资源 → 实测比较"
+    ],
+    "boundary": "XOR 不天然无冲突；可逆性只证明没有地址碰撞，不证明每次事务的 bank 都不同。CTA swizzle 也不改变矩阵乘数学或 shared 布局。"
+  },
+  {
+    "slug": "cuda-hopper-tma-wgmma",
+    "title": "（十五）TMA 与 WGMMA",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "empty：槽已释放",
+      "登记 expected bytes / 发 TMA",
+      "full：搬运完成",
+      "发 WGMMA / commit",
+      "等待计算完成 → 释放槽"
+    ],
+    "boundary": "不能随手把 barrier arrive_count 写成线程数。必须逐条数真正执行 arrive 的线程及事务来源。图中的计数是教学协议，不能替代某一具体 kernel 的初始化参数。"
+  },
+  {
+    "slug": "cuda-sm120-warp-specialization",
+    "title": "（十六）SM120 的生产消费流水",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "核对 SM 与编译目标",
+      "分配 producer / consumer",
+      "预算 registers / shared",
+      "TMA full → mma.sync",
+      "consumer 释放 → producer 复用"
+    ],
+    "boundary": "原书方案同时变化 BK、stage 和角色时，速度差只能归于整个方案；不能声称全来自 TMA。SM100 与 SM120 也不是可互换的编译目标。"
+  },
+  {
+    "slug": "cuda-flash-attention-math",
+    "title": "（十七）FlashAttention",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "一个 Q tile 常驻",
+      "加载当前 K / V",
+      "QK → mask → max",
+      "重缩放旧 l/u + 新 PV",
+      "遍历结束 → u/l 写回"
+    ],
+    "boundary": "分块结果在实数中等价，浮点归约顺序不同不保证 bitwise 相同。不能把纯数学 CPU 演示称作 fused GPU kernel。"
+  },
+  {
+    "slug": "cuda-attention-split-q",
+    "title": "（十八）Split-Q",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "Q 行分给独立 owner",
+      "K/V tile 为多组共享",
+      "组内 QK 与行归约",
+      "S/P 布局转为 PV 输入",
+      "各 owner 更新并写自己的行"
+    ],
+    "boundary": "warp 级独立状态不是可以无限新增 SM 任务；CTA 的调度仍有自己的资源边界。不要把 warp 数乘进 grid 数后称为等量的 SM 并行度。"
+  },
+  {
+    "slug": "cuda-attention-kv-pipeline",
+    "title": "（十九）注意力的双流水",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "producer 等 K/V 的 empty",
+      "分别提交 K / V 搬运",
+      "K full → QK",
+      "softmax；V full → PV",
+      "各自最后读完 → 独立释放"
+    ],
+    "boundary": "full/empty 计数不能从另一篇 kernel 照抄。producer 组 128 个线程与只有 1 个线程提交 TMA 是不同事实，实际 arrive 参与者必须数清。"
+  },
+  {
+    "slug": "cuda-attention-multi-consumer",
+    "title": "（二十）多 consumer 与分段合并",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "KV tile 奇偶分流",
+      "consumer A 独立状态",
+      "consumer B 独立状态",
+      "等待两路终态",
+      "LSE 加权合并 → 唯一输出"
+    ],
+    "boundary": "“有两组 consumer”并不能证明计算通路一定重叠，也不能推断两倍速度。多组共享 full/empty 时要检查是否每个实际读者都参与释放。"
+  },
+  {
+    "slug": "cuda-attention-split-d",
+    "title": "（二十一）大 head_dim",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "沿 D 装入 Q/K chunk",
+      "累加完整 S，不做局部 softmax",
+      "一次行 softmax / online 更新",
+      "沿 Dv 计算各输出 chunk",
+      "共同 alpha 与 l → 输出"
+    ],
+    "boundary": "LSE merge 适用于不同 key 子集，不适用于同一个分数的 D 子项。改变 chunk 顺序会改变浮点舍入，因此“数学恒等”不代表逐 bit 恒等。"
+  },
+  {
+    "slug": "cuda-cute-layout",
+    "title": "（二十二）Layout",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "给定 shape / stride",
+      "枚举合法坐标",
+      "求线性 offset",
+      "检查别名 / 洞 / 覆盖",
+      "组合、切分并核对结果"
+    ],
+    "boundary": "相同元素数不意味着相同布局，也不意味着可以 reinterpret。CuTe 的维度优先顺序应依据具体 layout 求值，不能把 Python 默认行主序当成 CuTe 全部规则。"
+  },
+  {
+    "slug": "cuda-cute-tiled-copy",
+    "title": "（二十三）Copy 的归属",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "逻辑 tile 与源 layout",
+      "thread/value 划分",
+      "源 partition 与目标 partition",
+      "执行 copy / 等待完成",
+      "round-trip 检查逐元素相等"
+    ],
+    "boundary": "copy atom 的对齐、字节宽度和参与线程限制不能靠高层类型名猜测。尾部无效元素与线程不参加 collective 是不同情况。"
+  },
+  {
+    "slug": "cuda-cute-tiled-mma",
+    "title": "（二十四）MMA 的归属",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "选择 MMA atom",
+      "按 M/N/K 定义 tile",
+      "分别 partition A/B/C",
+      "copy fragment → gemm",
+      "按 C 的 owner 写回"
+    ],
+    "boundary": "平均寄存器数不包含临时量，也不保证均匀分配。改变 atom layout 后，softmax 的行归约范围和 P 交接都需要重新验证。"
+  },
+  {
+    "slug": "cuda-cute-tma-layout",
+    "title": "（二十五）Swizzle 与 TMA 的地址契约",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "逻辑坐标 → 元素 offset",
+      "换算字节 / packed 坐标",
+      "descriptor 决定物理 swizzle",
+      "消费者匹配布局读取",
+      "写回并逐坐标比对"
+    ],
+    "boundary": "可逆 XOR 图只是布局直觉，不是 SW32/SW64/SW128 的逐位硬件实现。实际参数必须引用当前目标的 descriptor 和布局定义。"
+  },
+  {
+    "slug": "cuda-cute-gemm",
+    "title": "（二十六）布局驱动的 GEMM 工程",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "构造 global / shared layouts",
+      "TiledCopy 搬入并等待",
+      "TiledMMA 沿 K 累加",
+      "epilogue 缩放 / bias",
+      "staging → 合并写回"
+    ],
+    "boundary": "不要用某一份编译配置的良好结果宣称 CuTe 总比手写快。对照需要相同 dtype、累加类型、形状、tile 和计时范围。"
+  },
+  {
+    "slug": "cuda-cute-attention-variants",
+    "title": "（二十七）Attention 实现对照",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "冻结统一输入契约",
+      "copy smoke / QK 单独校验",
+      "三种流水执行相同数学",
+      "合并与 epilogue 完成",
+      "统一误差与总时间比较"
+    ],
+    "boundary": "书中三种命名属于该仓库的实现组织，不等于所有同名论文的完整实现。框架与编译器变化的收益不能都归到 TMA 指令。"
+  },
+  {
+    "slug": "cuda-cute-split-d-layout",
+    "title": "（二十八）大 D 的布局代数与寄存器预算",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "定义 QK / PV 两套 tile",
+      "枚举 thread/value 坐标",
+      "跨 D chunk 累加 S",
+      "验证 P 到 A 的映射",
+      "预算全部 O chunk 与临时值"
+    ],
+    "boundary": "上面的 256 只是平均逻辑累加值，已提示资源风险；不能把它与硬件寄存器上限机械相等后忽略分配粒度、其它临时量和 spill。"
+  },
+  {
+    "slug": "cuda-persistent-attention",
+    "title": "（二十九）Persistent Attention",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "生成逻辑 Q tile 任务",
+      "worker 按 stride 领取",
+      "重置本任务 m/l/u",
+      "遍历 KV 并输出",
+      "确认完成 → 下个 task"
+    ],
+    "boundary": "常驻 CTA 不是常驻某个确定 SM 的永久绑定。不能从 grid 数直接推断每个 SM 的精确执行顺序或占用。"
+  },
+  {
+    "slug": "cuda-non-ws-split-d",
+    "title": "（三十）大 D 的 non-WS 流水",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "选择提交线程并计算序号",
+      "K chunk 发起 / 等待",
+      "所有计算线程做 QK",
+      "独立 V 流水做 PV",
+      "最后读完释放，预取后续"
+    ],
+    "boundary": "把 producer 线程重新用于计算，未必减少整体指令或资源。比较需单独调参，否则一个方案的默认 tile 可能偏向另一方案。"
+  },
+  {
+    "slug": "cuda-fp8-quantization",
+    "title": "（三十一）FP8 的格式与量化前处理",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "按约定划分量化组",
+      "归约 amax / 处理零块",
+      "计算 scale 与归一值",
+      "E4M3 舍入 / 饱和",
+      "输出 data+scale 并重建校验"
+    ],
+    "boundary": "FP8 E4M3 的不同变体有不同特殊值编码。软件模型明确使用 E4M3FN 有限数，不把通用 minifloat 或 INT8 当作 bit-exact FP8。"
+  },
+  {
+    "slug": "cuda-fp8-gemm",
+    "title": "（三十二）FP8 GEMM",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "FP8 data 与 scale 契约",
+      "逐 K tile 搬入",
+      "MMA 产生 partial",
+      "按 scale 粒度乘回 / 累加",
+      "epilogue → 双参考误差"
+    ],
+    "boundary": "前处理时间不应从“端到端 FP8 加速”里消失。原始输入和反量化参考都要保留，避免在原地量化后失去对照。"
+  },
+  {
+    "slug": "cuda-nvfp4-format",
+    "title": "（三十三）NVFP4",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "选 global / block scale",
+      "舍入并保存 block scale",
+      "按实际 scale 量化 E2M1",
+      "两 nibble 打包一 byte",
+      "解包 + 两级反量化验证"
+    ],
+    "boundary": "实际 NVFP4 转换与 scale 布局要匹配目标指令约定。软件小模型验证数值和 packing，不声称已实现全部设备专用 SF 布局。"
+  },
+  {
+    "slug": "cuda-block-scaled-mma",
+    "title": "（三十四）Block-scaled MMA",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "data 与 SF 按组对应",
+      "分别搬入 A/B/SFA/SFB",
+      "等待四条依赖就绪",
+      "配对 fragment → scaled MMA",
+      "global scale / epilogue 写出"
+    ],
+    "boundary": "支持 FP4 存储不等于支持某一种 block-scaled 指令。SM100 与 SM120 的指令族及 scale layout 需要分别核对，不能直接复制模板参数。"
+  },
+  {
+    "slug": "cuda-quantized-attention-math",
+    "title": "（三十五）量化 Attention",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "高精度 QK / P / O 参考",
+      "只量化 QK → 检查 logits",
+      "只量化 V / P → 检查贡献",
+      "组合量化 → 逐行误差",
+      "尖峰 / causal / 长序列验收"
+    ],
+    "boundary": "放宽容差不能修复布局错误。量化可接受的阈值来自应用需求与数据分布，不能照抄书中某张卡某组随机输入的 allclose 阈值。"
+  },
+  {
+    "slug": "cuda-fp8-attention-preprocess",
+    "title": "（三十六）FP8 Attention 的前处理链",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "统计 K/V 均值与量化组",
+      "平滑 / 可选正交旋转",
+      "量化并生成 scale",
+      "V 转置与 padding",
+      "主 kernel → 必要修正"
+    ],
+    "boundary": "不能把预处理好的输入复用多次的时间，直接当成每次输入都变化的端到端延迟。旋转的维度和 padding 必须遵守正交变换约定。"
+  },
+  {
+    "slug": "cuda-fp8-persist-scale",
+    "title": "（三十七）FP8 persist-D 与 scale 折叠",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "消费 Q8/K8/V8 与 scales",
+      "QK MMA → 恢复 score 尺度",
+      "online softmax / P 量化",
+      "PV 按合法尺度累加",
+      "最终归一化与输出修正"
+    ],
+    "boundary": "代数抵消并不等于量化后 bitwise 抵消；在缩放前后分别舍入会产生不同结果。形状支持范围以具体 dispatch 与测试为准。"
+  },
+  {
+    "slug": "cuda-fp8-split-d-m4n2",
+    "title": "（三十八）FP8 大 D",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "分别估算 shared / registers",
+      "沿 D chunk 降搬运容量",
+      "选择 M/N 排布与 Br",
+      "合并行统计 / P 交接",
+      "检查 spill → 正确性 → 时间"
+    ],
+    "boundary": "书中按 D 的切换阈值是该实现与设备的调参结果，不能作为所有 GPU 的固定阈值。低精度 causal 误差还需逐行检查。"
+  },
+  {
+    "slug": "cuda-fp4-attention-preprocess",
+    "title": "（三十九）FP4 Attention 的量化链",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "统计 Q 块 / K 均值",
+      "平滑并生成 delta S",
+      "两级 scale + FP4 packing",
+      "数据/SF 同步置换",
+      "消费时恢复逻辑 mask / 修正"
+    ],
+    "boundary": "平滑是某一实现的算法设计，不是 NVFP4 格式本身的强制要求。不要把原书实现的必须步骤泛化成所有 FP4 attention 的硬件规定。"
+  },
+  {
+    "slug": "cuda-fp4-attention-probability",
+    "title": "（四十）FP4 Attention",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "更新 running max 与 alpha",
+      "生成未归一化 P",
+      "2688 放大 → 局部 SF + FP4",
+      "PV 累加并缩放旧 u",
+      "使用定义一致的 l 归一化"
+    ],
+    "boundary": "2688 是这套格式与尺度设计的值，不是任意 FP4 格式通用常量。当前 tile 最大指数不一定为 1，不能每块重新假设它达满量程。"
+  },
+  {
+    "slug": "cuda-benchmark-accuracy",
+    "title": "（四十一）基准与精度",
+    "subtitle": "箭头表示数据 / 完成依赖；不是 GPU 时钟。按从上到下的顺序阅读。",
+    "flow": [
+      "冻结契约 / 版本 / 后端",
+      "边界与精度校验",
+      "热身与设备同步",
+      "重复 A/B 计时完整范围",
+      "保存分布、失败例与复现命令"
+    ],
+    "boundary": "较宽容差不是正确性的豁免。软件 fallback、SKIP、编译成功、设备正确性通过和性能改进必须分列，任何一个都不能冒充另一个。"
+  }
+]

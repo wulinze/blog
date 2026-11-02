@@ -1,0 +1,13 @@
+22. Layout：坐标、地址与可逆映射
+
+本章可运行语义基线：padding stride 的 gather，显式区分逻辑元素与地址空间。
+
+Triton 构造带 stride 的 view copy，和连续张量对照；TileLang 显式建立布局并枚举。CPU 先穷举 (2,3)、padding、重复 stride，GPU 练习只接受无别名且边界合法的输入。原书 ch20_layout 是 host 断言程序。
+
+进阶验收：Python 小模型穷举地址；分清逻辑 reshape 与真实搬运
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

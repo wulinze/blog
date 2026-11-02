@@ -1,0 +1,13 @@
+20. 多 consumer 与分段合并
+
+本章可运行语义基线：小尺寸 attention 语义基线，包含明确的 top-left causal mask；各章专用流水、布局与分工见下面的固定版本 CUDA demo。
+
+Triton 先做两个 kernel 分段加 merge；TileLang 也先用分 kernel 等价实现验证数学。再尝试单 CTA 多 consumer，测试 1/2/3/5 个 KV tile，包含一组为空的情形。
+
+进阶验收：单段退化、奇数 KV tile、空段均正确；合并成本计入总时间
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

@@ -1,0 +1,13 @@
+17. FlashAttention：为什么可以不写出分数矩阵
+
+本章可运行语义基线：小尺寸 attention 语义基线，包含明确的 top-left causal mask；各章专用流水、布局与分工见下面的固定版本 CUDA demo。
+
+Triton 和 TileLang 从公开的 fused attention 教程出发，先固定单头、小尺寸。测试 N=1/17/65，dense/causal 与极端分数；每一 KV tile 后与 CPU 的 m/l/u 状态对照，再做性能实验。
+
+进阶验收：与完整 attention 对齐，覆盖 causal、尾块；解释旧输出为何也必须缩放
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

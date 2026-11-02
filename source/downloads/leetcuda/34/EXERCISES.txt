@@ -1,0 +1,13 @@
+35. 量化 Attention：误差在哪里被放大
+
+本章可运行语义基线：单独量化 V 的 attention，帮助定位输出误差；多阶段开关是扩展题。
+
+两语言均提供开关只量化 Q/K、V 或 P，每组保存中间输出。输入包含均匀分数、单个尖峰、全负、长序列；输出按行报告误差，特别检查 causal 第一行。
+
+进阶验收：区分 logits、概率、输出误差；极端分布/长序列都要覆盖
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

@@ -1,0 +1,13 @@
+7. LSE 与注意力状态合并
+
+本章可运行语义基线：分段 attention + LSE 权重合并；状态归约由框架操作显式串联，尚未融合成单 kernel。
+
+Triton 与 TileLang 都实现 merge(O_A,L_A,O_B,L_B)。每行一组 LSE，沿 D 广播权重。测试空/非空、双空、LSE 相差 1000、三个不等长段；参考从原始 scores/V 一次计算，不能只拿同一合并函数作参考。
+
+进阶验收：分段合并对齐完整参考，覆盖空段与两边都空，明确对数底
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

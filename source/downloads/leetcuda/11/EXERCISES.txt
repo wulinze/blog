@@ -1,0 +1,13 @@
+12. 精度与异步搬运：TF32 和双缓冲
+
+本章可运行语义基线：相同 FP32 GEMM 正确性基线；TF32 与异步 stages 的改变是扩展题。
+
+Triton 比较 input_precision="ieee" 与 "tf32"，固定形状分别报误差；TileLang 固定数学类型先扫 num_stages。记录生成代码、寄存器、shared 和时间，短 K 与长 K 各测一组。
+
+进阶验收：必须先报告精度，再谈速度；只看到异步指令不算 overlap 已被证明
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

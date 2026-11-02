@@ -1,0 +1,13 @@
+24. MMA 的归属：从原子到输出 fragment
+
+本章可运行语义基线：矩阵乘数值基线；TiledMMA 的 host 映射测试见原书专用程序。
+
+Triton 追踪 dot 前后布局转换的编译器 IR；TileLang 可视化 accumulator 和输入 fragment。用唯一编号填每个输入坐标，先验证小矩阵，再扩展到两种 M/N warp 排布。
+
+进阶验收：元素计数守恒；点积输入布局与输出布局不能直接混用
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

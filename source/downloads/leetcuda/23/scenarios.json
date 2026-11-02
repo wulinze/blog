@@ -1,0 +1,158 @@
+[
+  {
+    "label": "atom 排布 M=1,N=1",
+    "steps": [
+      {
+        "title": "输出 tile",
+        "values": {
+          "BM": 16,
+          "BN": 8,
+          "atoms": 1,
+          "elements": 128
+        },
+        "detail": "这里只铺输出 M/N，不额外沿 K 复制输出。"
+      },
+      {
+        "title": "每 atom 的起点",
+        "values": [
+          [
+            0,
+            0
+          ]
+        ],
+        "detail": "每个 atom 内采用前文的 C fragment 映射。"
+      },
+      {
+        "title": "完整覆盖",
+        "values": {
+          "unique": 128,
+          "expected": 128
+        },
+        "detail": "真实 TiledMMA 的线程复用方式还需具体类型验证。"
+      }
+    ],
+    "check": "atom 输出组合无重叠无遗漏。"
+  },
+  {
+    "label": "atom 排布 M=2,N=1",
+    "steps": [
+      {
+        "title": "输出 tile",
+        "values": {
+          "BM": 32,
+          "BN": 8,
+          "atoms": 2,
+          "elements": 256
+        },
+        "detail": "这里只铺输出 M/N，不额外沿 K 复制输出。"
+      },
+      {
+        "title": "每 atom 的起点",
+        "values": [
+          [
+            0,
+            0
+          ],
+          [
+            16,
+            0
+          ]
+        ],
+        "detail": "每个 atom 内采用前文的 C fragment 映射。"
+      },
+      {
+        "title": "完整覆盖",
+        "values": {
+          "unique": 256,
+          "expected": 256
+        },
+        "detail": "真实 TiledMMA 的线程复用方式还需具体类型验证。"
+      }
+    ],
+    "check": "atom 输出组合无重叠无遗漏。"
+  },
+  {
+    "label": "atom 排布 M=1,N=2",
+    "steps": [
+      {
+        "title": "输出 tile",
+        "values": {
+          "BM": 16,
+          "BN": 16,
+          "atoms": 2,
+          "elements": 256
+        },
+        "detail": "这里只铺输出 M/N，不额外沿 K 复制输出。"
+      },
+      {
+        "title": "每 atom 的起点",
+        "values": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            8
+          ]
+        ],
+        "detail": "每个 atom 内采用前文的 C fragment 映射。"
+      },
+      {
+        "title": "完整覆盖",
+        "values": {
+          "unique": 256,
+          "expected": 256
+        },
+        "detail": "真实 TiledMMA 的线程复用方式还需具体类型验证。"
+      }
+    ],
+    "check": "atom 输出组合无重叠无遗漏。"
+  },
+  {
+    "label": "atom 排布 M=2,N=2",
+    "steps": [
+      {
+        "title": "输出 tile",
+        "values": {
+          "BM": 32,
+          "BN": 16,
+          "atoms": 4,
+          "elements": 512
+        },
+        "detail": "这里只铺输出 M/N，不额外沿 K 复制输出。"
+      },
+      {
+        "title": "每 atom 的起点",
+        "values": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            8
+          ],
+          [
+            16,
+            0
+          ],
+          [
+            16,
+            8
+          ]
+        ],
+        "detail": "每个 atom 内采用前文的 C fragment 映射。"
+      },
+      {
+        "title": "完整覆盖",
+        "values": {
+          "unique": 512,
+          "expected": 512
+        },
+        "detail": "真实 TiledMMA 的线程复用方式还需具体类型验证。"
+      }
+    ],
+    "check": "atom 输出组合无重叠无遗漏。"
+  }
+]

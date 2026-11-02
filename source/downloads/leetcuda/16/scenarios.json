@@ -1,0 +1,115 @@
+[
+  {
+    "label": "scores=[0, 0],V=[2, 4]",
+    "steps": [
+      {
+        "title": "处理 key [0,2)",
+        "values": {
+          "scores": [
+            0,
+            0
+          ],
+          "m": 0,
+          "alpha": 0.0,
+          "denominator": 2.0,
+          "u": 6.0,
+          "O": 3.0
+        },
+        "detail": "旧 denominator 和旧 u 同乘 alpha；本块 p 以新 m 为指数基准。"
+      }
+    ],
+    "check": "每一个 KV 前缀状态与完整前缀 attention 相同。"
+  },
+  {
+    "label": "scores=[1, 2, 3, 4],V=[2, 4, 6, 8]",
+    "steps": [
+      {
+        "title": "处理 key [0,2)",
+        "values": {
+          "scores": [
+            1,
+            2
+          ],
+          "m": 2,
+          "alpha": 0.0,
+          "denominator": 1.3678794411714423,
+          "u": 4.735758882342885,
+          "O": 3.4621171572600096
+        },
+        "detail": "旧 denominator 和旧 u 同乘 alpha；本块 p 以新 m 为指数基准。"
+      },
+      {
+        "title": "处理 key [2,4)",
+        "values": {
+          "scores": [
+            3,
+            4
+          ],
+          "m": 4,
+          "alpha": 0.1353352832366127,
+          "denominator": 1.553001792775919,
+          "u": 10.848191916710832,
+          "O": 6.985305469171538
+        },
+        "detail": "旧 denominator 和旧 u 同乘 alpha；本块 p 以新 m 为指数基准。"
+      }
+    ],
+    "check": "每一个 KV 前缀状态与完整前缀 attention 相同。"
+  },
+  {
+    "label": "scores=[0, -2, 8, 1],V=[2, 4, 6, 8]",
+    "steps": [
+      {
+        "title": "处理 key [0,2)",
+        "values": {
+          "scores": [
+            0,
+            -2
+          ],
+          "m": 0,
+          "alpha": 0.0,
+          "denominator": 1.1353352832366128,
+          "u": 2.541341132946451,
+          "O": 2.2384058440442347
+        },
+        "detail": "旧 denominator 和旧 u 同乘 alpha；本块 p 以新 m 为指数基准。"
+      },
+      {
+        "title": "处理 key [2,4)",
+        "values": {
+          "scores": [
+            8,
+            1
+          ],
+          "m": 8,
+          "alpha": 0.00033546262790251185,
+          "denominator": 1.0012927445232194,
+          "u": 6.008147580699291,
+          "O": 6.000390608602842
+        },
+        "detail": "旧 denominator 和旧 u 同乘 alpha；本块 p 以新 m 为指数基准。"
+      }
+    ],
+    "check": "每一个 KV 前缀状态与完整前缀 attention 相同。"
+  },
+  {
+    "label": "scores=[5],V=[2]",
+    "steps": [
+      {
+        "title": "处理 key [0,1)",
+        "values": {
+          "scores": [
+            5
+          ],
+          "m": 5,
+          "alpha": 0.0,
+          "denominator": 1.0,
+          "u": 2.0,
+          "O": 2.0
+        },
+        "detail": "旧 denominator 和旧 u 同乘 alpha；本块 p 以新 m 为指数基准。"
+      }
+    ],
+    "check": "每一个 KV 前缀状态与完整前缀 attention 相同。"
+  }
+]

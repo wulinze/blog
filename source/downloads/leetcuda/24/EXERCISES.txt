@@ -1,0 +1,13 @@
+25. Swizzle 与 TMA 的地址契约
+
+本章可运行语义基线：匹配 XOR 布局的 gather；真实 TMA round-trip 需要专用硬件路径。
+
+Triton descriptor copy 与普通 load 做等价验证；TileLang 显式 swizzle 和 TMA 搬运配对。小 tile、不同 stage、非零 base offset 各测一组。原书 ch23_swizzle_tma 是 host 布局断言，不能当硬件 copy 测试。
+
+进阶验收：先小 tile round-trip，再接 MMA；分别核验对齐、base 与 phase
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

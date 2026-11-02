@@ -1,0 +1,13 @@
+14. 布局与调度：三种不同的 swizzle
+
+本章可运行语义基线：8×8 XOR gather 映射；CTA swizzle 与双缓冲的性能实验是扩展题。
+
+Triton 只改 grouped program ordering，保持 BM/BN/BK 相同；TileLang 只改 shared layout，再独立改流水。逐项保存时间和 NCU 指标，不能只报告全部开关都开后的一个数字。
+
+进阶验收：验证映射一一对应，再用实际访问组验证 bank；不混淆 L2 与 shared
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

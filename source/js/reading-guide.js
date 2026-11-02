@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
   toc.addEventListener('click', event => {
     if (event.target.closest('a') && window.innerWidth < 992) window.dispatchEvent(new Event('sidebar:hide'));
   });
-  window.matchMedia('(min-width: 992px)').addEventListener('change', event => {
-    if (event.matches) window.dispatchEvent(new Event('sidebar:hide'));
+  window.matchMedia('(min-width: 992px)').addEventListener('change', () => {
+    window.dispatchEvent(new Event('sidebar:hide'));
   });
 });

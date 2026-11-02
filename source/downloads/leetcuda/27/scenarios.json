@@ -1,0 +1,94 @@
+[
+  {
+    "label": "D=64,chunk=64,Br=64,threads=128",
+    "steps": [
+      {
+        "title": "S 与 O 元素",
+        "values": {
+          "S": 4096,
+          "O": 4096,
+          "D_chunks": 1
+        },
+        "detail": "S 跨 chunk 累加；O 各 chunk 是不同输出。"
+      },
+      {
+        "title": "预算分别看",
+        "values": {
+          "one_QK_chunk_bytes": 16384,
+          "O_values_per_thread_average": 32
+        },
+        "detail": "shared chunk 不随 D 增长，但完整 O 随 D 增长。"
+      }
+    ],
+    "check": "元素数量直接推导，未把逻辑平均值冒充编译器寄存器报告。"
+  },
+  {
+    "label": "D=192,chunk=64,Br=64,threads=128",
+    "steps": [
+      {
+        "title": "S 与 O 元素",
+        "values": {
+          "S": 4096,
+          "O": 12288,
+          "D_chunks": 3
+        },
+        "detail": "S 跨 chunk 累加；O 各 chunk 是不同输出。"
+      },
+      {
+        "title": "预算分别看",
+        "values": {
+          "one_QK_chunk_bytes": 16384,
+          "O_values_per_thread_average": 96
+        },
+        "detail": "shared chunk 不随 D 增长，但完整 O 随 D 增长。"
+      }
+    ],
+    "check": "元素数量直接推导，未把逻辑平均值冒充编译器寄存器报告。"
+  },
+  {
+    "label": "D=512,chunk=64,Br=64,threads=128",
+    "steps": [
+      {
+        "title": "S 与 O 元素",
+        "values": {
+          "S": 4096,
+          "O": 32768,
+          "D_chunks": 8
+        },
+        "detail": "S 跨 chunk 累加；O 各 chunk 是不同输出。"
+      },
+      {
+        "title": "预算分别看",
+        "values": {
+          "one_QK_chunk_bytes": 16384,
+          "O_values_per_thread_average": 256
+        },
+        "detail": "shared chunk 不随 D 增长，但完整 O 随 D 增长。"
+      }
+    ],
+    "check": "元素数量直接推导，未把逻辑平均值冒充编译器寄存器报告。"
+  },
+  {
+    "label": "D=1024,chunk=64,Br=64,threads=128",
+    "steps": [
+      {
+        "title": "S 与 O 元素",
+        "values": {
+          "S": 4096,
+          "O": 65536,
+          "D_chunks": 16
+        },
+        "detail": "S 跨 chunk 累加；O 各 chunk 是不同输出。"
+      },
+      {
+        "title": "预算分别看",
+        "values": {
+          "one_QK_chunk_bytes": 16384,
+          "O_values_per_thread_average": 512
+        },
+        "detail": "shared chunk 不随 D 增长，但完整 O 随 D 增长。"
+      }
+    ],
+    "check": "元素数量直接推导，未把逻辑平均值冒充编译器寄存器报告。"
+  }
+]

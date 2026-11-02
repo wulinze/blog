@@ -1,0 +1,226 @@
+[
+  {
+    "label": "K stages=1,V stages=1",
+    "steps": [
+      {
+        "title": "KV tile 0 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 1 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 1,
+          "V_slot": 0,
+          "V_phase": 1
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 2 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 3 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 1,
+          "V_slot": 0,
+          "V_phase": 1
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 4 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      }
+    ],
+    "check": "两套环形编号按各自 stage 数独立更新。"
+  },
+  {
+    "label": "K stages=2,V stages=1",
+    "steps": [
+      {
+        "title": "KV tile 0 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 1 的两套槽",
+        "values": {
+          "K_slot": 1,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 1
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 2 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 1,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 3 的两套槽",
+        "values": {
+          "K_slot": 1,
+          "K_phase": 1,
+          "V_slot": 0,
+          "V_phase": 1
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 4 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      }
+    ],
+    "check": "两套环形编号按各自 stage 数独立更新。"
+  },
+  {
+    "label": "K stages=2,V stages=2",
+    "steps": [
+      {
+        "title": "KV tile 0 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 1 的两套槽",
+        "values": {
+          "K_slot": 1,
+          "K_phase": 0,
+          "V_slot": 1,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 2 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 1,
+          "V_slot": 0,
+          "V_phase": 1
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 3 的两套槽",
+        "values": {
+          "K_slot": 1,
+          "K_phase": 1,
+          "V_slot": 1,
+          "V_phase": 1
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 4 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      }
+    ],
+    "check": "两套环形编号按各自 stage 数独立更新。"
+  },
+  {
+    "label": "K stages=3,V stages=2",
+    "steps": [
+      {
+        "title": "KV tile 0 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 1 的两套槽",
+        "values": {
+          "K_slot": 1,
+          "K_phase": 0,
+          "V_slot": 1,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 2 的两套槽",
+        "values": {
+          "K_slot": 2,
+          "K_phase": 0,
+          "V_slot": 0,
+          "V_phase": 1
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 3 的两套槽",
+        "values": {
+          "K_slot": 0,
+          "K_phase": 1,
+          "V_slot": 1,
+          "V_phase": 1
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      },
+      {
+        "title": "KV tile 4 的两套槽",
+        "values": {
+          "K_slot": 1,
+          "K_phase": 1,
+          "V_slot": 0,
+          "V_phase": 0
+        },
+        "detail": "QK 消费 K，softmax 后 PV 消费 V；释放时刻分别判断。"
+      }
+    ],
+    "check": "两套环形编号按各自 stage 数独立更新。"
+  }
+]

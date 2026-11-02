@@ -1,0 +1,818 @@
+[
+  {
+    "label": "stages=1,tiles=1",
+    "steps": [
+      {
+        "title": "tile 0: loading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "loading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: full",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "full"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: reading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "reading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: empty",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      }
+    ],
+    "check": "每次覆盖都发生在 empty；绕环后 phase 正确翻转。"
+  },
+  {
+    "label": "stages=2,tiles=3",
+    "steps": [
+      {
+        "title": "tile 0: loading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "loading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: full",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "full",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: reading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "reading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: empty",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: loading",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "loading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: full",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "full"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: reading",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "reading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: empty",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: loading",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "loading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: full",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "full",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: reading",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "reading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: empty",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      }
+    ],
+    "check": "每次覆盖都发生在 empty；绕环后 phase 正确翻转。"
+  },
+  {
+    "label": "stages=2,tiles=5",
+    "steps": [
+      {
+        "title": "tile 0: loading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "loading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: full",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "full",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: reading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "reading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: empty",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: loading",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "loading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: full",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "full"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: reading",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "reading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: empty",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: loading",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "loading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: full",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "full",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: reading",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "reading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: empty",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 3: loading",
+        "values": {
+          "slot": 1,
+          "phase": 1,
+          "states": [
+            "empty",
+            "loading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 3: full",
+        "values": {
+          "slot": 1,
+          "phase": 1,
+          "states": [
+            "empty",
+            "full"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 3: reading",
+        "values": {
+          "slot": 1,
+          "phase": 1,
+          "states": [
+            "empty",
+            "reading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 3: empty",
+        "values": {
+          "slot": 1,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 4: loading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "loading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 4: full",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "full",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 4: reading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "reading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 4: empty",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      }
+    ],
+    "check": "每次覆盖都发生在 empty；绕环后 phase 正确翻转。"
+  },
+  {
+    "label": "stages=3,tiles=7",
+    "steps": [
+      {
+        "title": "tile 0: loading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "loading",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: full",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "full",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: reading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "reading",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 0: empty",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: loading",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "loading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: full",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "full",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: reading",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "reading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 1: empty",
+        "values": {
+          "slot": 1,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: loading",
+        "values": {
+          "slot": 2,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty",
+            "loading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: full",
+        "values": {
+          "slot": 2,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty",
+            "full"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: reading",
+        "values": {
+          "slot": 2,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty",
+            "reading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 2: empty",
+        "values": {
+          "slot": 2,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 3: loading",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "loading",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 3: full",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "full",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 3: reading",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "reading",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 3: empty",
+        "values": {
+          "slot": 0,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 4: loading",
+        "values": {
+          "slot": 1,
+          "phase": 1,
+          "states": [
+            "empty",
+            "loading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 4: full",
+        "values": {
+          "slot": 1,
+          "phase": 1,
+          "states": [
+            "empty",
+            "full",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 4: reading",
+        "values": {
+          "slot": 1,
+          "phase": 1,
+          "states": [
+            "empty",
+            "reading",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 4: empty",
+        "values": {
+          "slot": 1,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 5: loading",
+        "values": {
+          "slot": 2,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty",
+            "loading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 5: full",
+        "values": {
+          "slot": 2,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty",
+            "full"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 5: reading",
+        "values": {
+          "slot": 2,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty",
+            "reading"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 5: empty",
+        "values": {
+          "slot": 2,
+          "phase": 1,
+          "states": [
+            "empty",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 6: loading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "loading",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 6: full",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "full",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 6: reading",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "reading",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      },
+      {
+        "title": "tile 6: empty",
+        "values": {
+          "slot": 0,
+          "phase": 0,
+          "states": [
+            "empty",
+            "empty",
+            "empty"
+          ]
+        },
+        "detail": "教学状态机：只有读者完成后才能重新写入；不是并发设备模拟器。"
+      }
+    ],
+    "check": "每次覆盖都发生在 empty；绕环后 phase 正确翻转。"
+  }
+]

@@ -1,0 +1,13 @@
+37. FP8 persist-D 与 scale 折叠
+
+本章可运行语义基线：把 QK scale 正确放进 softmax 之前的 attention；FP8 专用折叠实现见 CUDA demo。
+
+Triton 和 TileLang 分别写显式反量化版与 scale 折叠版。先在无量化舍入的小例子中证明等价，再用 FP8 输入比较误差；加入跨 key 改变 scale 的反例，防止非法外提。
+
+进阶验收：证明每个外提条件，动态 range 与不同 shape 下误差达标
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

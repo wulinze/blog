@@ -1,0 +1,13 @@
+5. 访问粒度与原子冲突：向量化和直方图
+
+本章可运行语义基线：整数 histogram：全局 atomic_add，覆盖均匀与单热点；shared 私有化是扩展题。
+
+Triton：先用 tl.arange 和 mask 写 stride copy，再用整数 atomic_add 做 histogram。TileLang：先写同样的全局原子基线，再引入 shared 私有计数。输入 [0,1,1,3,3,3] 的输出应为 [1,2,0,3]；均匀与全零两类输入都检查 sum(hist)==N。
+
+进阶验收：同一有效数据量比较请求；均匀与热点分布均正确，直方图总数守恒
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

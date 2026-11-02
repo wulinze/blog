@@ -1,0 +1,122 @@
+[
+  {
+    "label": "两个 K 组 scale 乘积=(1, 1)",
+    "steps": [
+      {
+        "title": "未缩放 partial",
+        "values": [
+          3,
+          5
+        ],
+        "detail": "每个 partial 属于不同 K 组。"
+      },
+      {
+        "title": "分别缩放后相加",
+        "values": {
+          "correct": 8,
+          "dequant_reference": 8.0
+        },
+        "detail": "K 方向变化的 scale 不能移到全部归约之后。"
+      },
+      {
+        "title": "错误外提的反例",
+        "values": {
+          "wrong": 8,
+          "difference": 0
+        },
+        "detail": "scale 相同的 case 不会暴露错误，必须测试不同 scale。"
+      }
+    ],
+    "check": "按组缩放与显式反量化点积一致。"
+  },
+  {
+    "label": "两个 K 组 scale 乘积=(1, 4)",
+    "steps": [
+      {
+        "title": "未缩放 partial",
+        "values": [
+          3,
+          5
+        ],
+        "detail": "每个 partial 属于不同 K 组。"
+      },
+      {
+        "title": "分别缩放后相加",
+        "values": {
+          "correct": 23,
+          "dequant_reference": 23.0
+        },
+        "detail": "K 方向变化的 scale 不能移到全部归约之后。"
+      },
+      {
+        "title": "错误外提的反例",
+        "values": {
+          "wrong": 8,
+          "difference": -15
+        },
+        "detail": "scale 相同的 case 不会暴露错误，必须测试不同 scale。"
+      }
+    ],
+    "check": "按组缩放与显式反量化点积一致。"
+  },
+  {
+    "label": "两个 K 组 scale 乘积=(2, 0.5)",
+    "steps": [
+      {
+        "title": "未缩放 partial",
+        "values": [
+          3,
+          5
+        ],
+        "detail": "每个 partial 属于不同 K 组。"
+      },
+      {
+        "title": "分别缩放后相加",
+        "values": {
+          "correct": 8.5,
+          "dequant_reference": 8.5
+        },
+        "detail": "K 方向变化的 scale 不能移到全部归约之后。"
+      },
+      {
+        "title": "错误外提的反例",
+        "values": {
+          "wrong": 16,
+          "difference": 7.5
+        },
+        "detail": "scale 相同的 case 不会暴露错误，必须测试不同 scale。"
+      }
+    ],
+    "check": "按组缩放与显式反量化点积一致。"
+  },
+  {
+    "label": "两个 K 组 scale 乘积=(0.25, 8)",
+    "steps": [
+      {
+        "title": "未缩放 partial",
+        "values": [
+          3,
+          5
+        ],
+        "detail": "每个 partial 属于不同 K 组。"
+      },
+      {
+        "title": "分别缩放后相加",
+        "values": {
+          "correct": 40.75,
+          "dequant_reference": 40.75
+        },
+        "detail": "K 方向变化的 scale 不能移到全部归约之后。"
+      },
+      {
+        "title": "错误外提的反例",
+        "values": {
+          "wrong": 2.0,
+          "difference": -38.75
+        },
+        "detail": "scale 相同的 case 不会暴露错误，必须测试不同 scale。"
+      }
+    ],
+    "check": "按组缩放与显式反量化点积一致。"
+  }
+]

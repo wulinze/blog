@@ -1,0 +1,7 @@
+{
+  "repo": "https://github.com/vipshop/ffpa-attn",
+  "commit": "861d75ee87824a14a9ebfe295d54c7dac3e3cabc",
+  "kind": "ffpa",
+  "implementation": "fp8",
+  "head_dim": 128
+}

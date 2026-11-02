@@ -1,0 +1,13 @@
+39. FP4 Attention 的量化链
+
+本章可运行语义基线：Q/K 平滑 + deltaS 修正的未量化 attention；数据/SF packing 与置换见 CPU 和专用 CUDA demo。
+
+Triton 和 TileLang 都先验证未量化的平滑恒等式，再插入 FP4。使用非零 Q/K 均值与 causal mask，故意省略 delta S 应被测试判错；然后验证数据与 SF 的置换还原。
+
+进阶验收：数据/scale 同时对齐，精度与转换成本单独报告
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

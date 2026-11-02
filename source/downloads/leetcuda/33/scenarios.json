@@ -1,0 +1,162 @@
+[
+  {
+    "label": "把 SF 错移 0 组，观察错误",
+    "steps": [
+      {
+        "title": "data / scale 按组",
+        "values": {
+          "data_values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "elements_per_group": 16
+        },
+        "detail": "每组重复同一个 data 值，方便手算。"
+      },
+      {
+        "title": "正确配对",
+        "values": {
+          "C": 784
+        },
+        "detail": "sum_g(16*data_g*scale_g)。"
+      },
+      {
+        "title": "错位 SF",
+        "values": {
+          "C_wrong": 784,
+          "error": 0
+        },
+        "detail": "只改 scale 位置就足以破坏结果。"
+      }
+    ],
+    "check": "正确结果 784；非均匀测试能揭露 scale 错位。"
+  },
+  {
+    "label": "把 SF 错移 1 组，观察错误",
+    "steps": [
+      {
+        "title": "data / scale 按组",
+        "values": {
+          "data_values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "elements_per_group": 16
+        },
+        "detail": "每组重复同一个 data 值，方便手算。"
+      },
+      {
+        "title": "正确配对",
+        "values": {
+          "C": 784
+        },
+        "detail": "sum_g(16*data_g*scale_g)。"
+      },
+      {
+        "title": "错位 SF",
+        "values": {
+          "C_wrong": 608,
+          "error": -176
+        },
+        "detail": "只改 scale 位置就足以破坏结果。"
+      }
+    ],
+    "check": "正确结果 784；非均匀测试能揭露 scale 错位。"
+  },
+  {
+    "label": "把 SF 错移 2 组，观察错误",
+    "steps": [
+      {
+        "title": "data / scale 按组",
+        "values": {
+          "data_values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "elements_per_group": 16
+        },
+        "detail": "每组重复同一个 data 值，方便手算。"
+      },
+      {
+        "title": "正确配对",
+        "values": {
+          "C": 784
+        },
+        "detail": "sum_g(16*data_g*scale_g)。"
+      },
+      {
+        "title": "错位 SF",
+        "values": {
+          "C_wrong": 496,
+          "error": -288
+        },
+        "detail": "只改 scale 位置就足以破坏结果。"
+      }
+    ],
+    "check": "正确结果 784；非均匀测试能揭露 scale 错位。"
+  },
+  {
+    "label": "把 SF 错移 3 组，观察错误",
+    "steps": [
+      {
+        "title": "data / scale 按组",
+        "values": {
+          "data_values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "elements_per_group": 16
+        },
+        "detail": "每组重复同一个 data 值，方便手算。"
+      },
+      {
+        "title": "正确配对",
+        "values": {
+          "C": 784
+        },
+        "detail": "sum_g(16*data_g*scale_g)。"
+      },
+      {
+        "title": "错位 SF",
+        "values": {
+          "C_wrong": 512,
+          "error": -272
+        },
+        "detail": "只改 scale 位置就足以破坏结果。"
+      }
+    ],
+    "check": "正确结果 784；非均匀测试能揭露 scale 错位。"
+  }
+]

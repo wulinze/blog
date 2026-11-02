@@ -1,0 +1,13 @@
+32. FP8 GEMM：scale 如何进入累加
+
+本章可运行语义基线：逐 K 块 FP8 重建后 GEMM；scale 不非法外提，硬件 FP8 MMA 见 CUDA demo。
+
+Triton 先做支持的 FP8 dot+行列 scale，再加 K-block scale；TileLang 同样分两步。输入为 2 个 scale 不同的 K 块，确保错误外提会被测试捕获；再扫真实形状并计入量化。
+
+进阶验收：与反量化参考对齐，前处理成本计入端到端；不同 K scale 不能直接外提
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

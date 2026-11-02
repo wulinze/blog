@@ -1,0 +1,13 @@
+10. GEMV：如何把一行交给 warp
+
+本章可运行语义基线：GEMV，通过矩阵乘基线的单输出列运行；短 K 子组是扩展题。
+
+Triton 写一行与四行 program；TileLang 改 row×K 的 fragment 分工。测 M=1/17/1024，K=16/33/1025；最后一行和 K 尾部必须正确。先用 FP64 参考，再比较不同划分。
+
+进阶验收：M/K 尾部正确，区分任务太少与 DRAM 吞吐受限
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

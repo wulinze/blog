@@ -1,0 +1,13 @@
+34. Block-scaled MMA：scale 也是操作数
+
+本章可运行语义基线：逐 K 块 E2M1 重建后 GEMM；真实 block-scaled 指令与 SF 布局见专用 CUDA demo。
+
+Triton 先用反量化 dot 参考，再接目标支持的 dot_scaled；TileLang 按目标后端的 block-scaled 示例实现。每组不同 scale、最后不足一组、数据/SF padding 都要验证；设备不支持时明确跳过硬件部分。
+
+进阶验收：每个 scale 与正确数据块对应；对齐厂商库数值约定后再测
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

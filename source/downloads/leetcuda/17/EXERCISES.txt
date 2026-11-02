@@ -1,0 +1,13 @@
+18. Split-Q：让每组线程拥有自己的查询行
+
+本章可运行语义基线：小尺寸 attention 语义基线，包含明确的 top-left causal mask；各章专用流水、布局与分工见下面的固定版本 CUDA demo。
+
+Triton 改 BQ 而保持 BK 与数值路径一致；TileLang 改 GEMM warp policy 前先枚举行归约范围。检查每行写入一次、causal 对齐与尾行；扩展比较 Split-KV 的合并成本。
+
+进阶验收：每行状态有明确 owner；区分减少同步与增加重复加载
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。

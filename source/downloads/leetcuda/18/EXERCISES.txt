@@ -1,0 +1,13 @@
+19. 注意力的双流水：K、V 与角色分工
+
+本章可运行语义基线：小尺寸 attention 语义基线，包含明确的 top-left causal mask；各章专用流水、布局与分工见下面的固定版本 CUDA demo。
+
+两语言都先使用一条统一流水作为正确性基线。扩展到受支持的专门化路径时，独立扫 K/V stages；记录 single-tile、odd-tile 的通过状态及等待事件。浏览器中的时间线只表示依赖模型。
+
+进阶验收：短序列、单 tile、尾 tile 先通过；生产/消费不平衡需要时间线证据
+
+独立学生入口：student_triton.py / student_tilelang.py 的 solve(problem,backend)。
+输入由 exercises.make_problem(chapter,variant) 生成；参考由 expected 独立计算。
+4 个 case 包含小形状、零输入、非整除维度与 causal/布局变化。
+初始学生入口明确抛 NotImplementedError，不会冒充已完成练习。
+基线通过不代表进阶硬件机制已经实现。
