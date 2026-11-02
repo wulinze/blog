@@ -71,6 +71,41 @@
       };
       length.addEventListener('input', render); size.addEventListener('input', render); render();
     },
+    memory(root) {
+      const panel = controls(root);
+      const select = (label, options) => {
+        const wrap = node('label', label);
+        const input = document.createElement('select');
+        for (const [value, title] of options) {
+          const option = node('option', title); option.value = value; input.append(option);
+        }
+        wrap.append(input); panel.append(wrap); return input;
+      };
+      const space = select('访问对象', [['global', 'global：x = A[i]'], ['shared', 'shared：y = tile[t]'], ['register', 'register：复用 x'], ['local', 'local：读取私有存储']]);
+      const cache = select('假定缓存状态', [['l1', 'L1 命中'], ['l2', 'L1 未命中，L2 命中'], ['dram', 'L1 / L2 都未命中'], ['bypass', '绕过 L1，L2 命中']]);
+      const result = output(root);
+      const render = () => {
+        const usesCache = space.value === 'global' || space.value === 'local';
+        cache.disabled = !usesCache;
+        if (space.value === 'register') {
+          result.textContent = '值已经在本线程的寄存器中\n寄存器 → 算术执行单元 → 结果寄存器\n本次复用不执行内存 load，不查询 L1 / L2，也不访问 DRAM。\n前提：该值确实保留在寄存器中，未发生 spill。';
+          return;
+        }
+        if (space.value === 'shared') {
+          result.textContent = '前提：tile 已被写入，并完成所需的线程间同步\nshared load → 本 SM 为本 block 分配的 shared → 目标寄存器\n不再查询原 global 地址的 L1 / L2 / DRAM。\n填充 shared 的成本发生在此前的显式搬运阶段。';
+          return;
+        }
+        const paths = {
+          l1: ['load → L1 命中 → 目标寄存器', '本次所需数据由 L1 提供，无需继续请求 L2 / DRAM。'],
+          l2: ['load → L1 未命中 → L2 命中 → 返回目标寄存器', '本次所需数据由 L2 提供，无需读取 DRAM。'],
+          dram: ['load → L1 未命中 → L2 未命中 → 内存控制器 → HBM / GDDR', '数据经返回通路送到目标寄存器；缓存填充依具体策略。'],
+          bypass: ['load → 绕过 L1 → L2 命中 → 返回目标寄存器', '这是另一种允许的加载策略；L1 不是所有 load 的必经缓存。']
+        };
+        const [path, explanation] = paths[cache.value];
+        result.textContent = `${space.value === 'global' ? 'global：本例 A 位于当前 GPU 的设备分配' : 'local：逻辑上线程私有，物理存储由设备内存支撑'}\n${path}\n${explanation}\n只跟踪一个数据片段；命中状态是教学假设，不是运行测量。`;
+      };
+      space.addEventListener('change', render); cache.addEventListener('change', render); render();
+    },
     shared(root) {
       const panel = controls(root); const base = number(panel, '输入起点', 0, 0, 20); const result = output(root);
       const render = () => {

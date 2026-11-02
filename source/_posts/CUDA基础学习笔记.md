@@ -1,6 +1,6 @@
 ---
 title: CUDA 基础学习笔记：从一次向量加法理解执行与内存
-description: 用七张 Excalidraw 手绘图、可交互小实验与 CUDA demo，讲清线程组织、内存位置、同步及向量加法。
+description: 用十张 Excalidraw 手绘图、八个交互实验与 CUDA demo，对应 GPU 物理结构、线程组织和多层访存路径。
 categories:
   - 系统知识
 tags:
@@ -18,7 +18,7 @@ date: 2026-11-02 12:03:33
 
 资料查阅日期为 **2026-11-02**，核心依据是 NVIDIA 官方编程指南和入门教程。完整示例是为这篇笔记编写的；当前本机没有 `nvcc`，尚未在 CUDA 环境编译或在 GPU 上运行，文中输出标为预期结果。
 
-这版配有 **7 张可放大的 Excalidraw 手绘图、7 个浏览器概念演示和 4 份 CUDA 源码 demo**。浏览器演示只计算概念模型，不调用 GPU；下载的 CUDA 程序需要 NVIDIA GPU 环境。建议每节先看图，再操作小实验，最后按需展开代码。
+这版配有 **10 张可放大的 Excalidraw 手绘图、8 个浏览器概念演示和 4 份 CUDA 源码 demo**。浏览器演示只计算概念模型，不调用 GPU；下载的 CUDA 程序需要 NVIDIA GPU 环境。建议每节先看图，再操作小实验，最后按需展开代码。
 
 [下载全部 CUDA demo（ZIP）](/downloads/cuda-basics/cuda-basics-demos.zip) · [运行说明](/downloads/cuda-basics/README.txt)
 
@@ -101,7 +101,7 @@ CPU / host                         GPU / device
 
 ### 3.2 再看硬件怎样承接这些任务
 
-**SM（Streaming Multiprocessor，流式多处理器）**是 GPU 上执行线程的硬件单元。一个普通 block 的线程由同一个 SM 执行；一个 SM 在资源允许时可以同时驻留多个 block。block 的编号不表示固定的 SM 编号，也不保证执行先后。
+<strong>SM（Streaming Multiprocessor，流式多处理器）</strong> 是 GPU 上执行线程的硬件单元。一个普通 block 的线程由同一个 SM 执行；一个 SM 在资源允许时可以同时驻留多个 block。block 的编号不表示固定的 SM 编号，也不保证执行先后。
 
 **warp** 是同一个 block 内组织线程执行的一组，当前 CUDA 的 warp 大小为 32 个线程。它采用 SIMT（Single Instruction, Multiple Threads，单指令多线程）模型：线程执行同一个 kernel，但拥有各自的数据和状态，也可能走不同分支。[Programming Model：GPU Hardware Model](https://docs.nvidia.com/cuda/cuda-programming-guide/01-introduction/programming-model.html#gpu-hardware-model)
 
@@ -110,7 +110,7 @@ CPU / host                         GPU / device
 <figcaption>图 2：左边是程序划分的任务，右边只画一种可能的硬件分配。颜色箭头不表示固定调度策略。 <a href="/images/cuda-basics/02-grid-sm.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-basics/02-grid-sm.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
 </figure>
 
-因此，读代码时可以分成两层：`grid/block/thread` 说明任务怎样组织；`SM/warp` 帮助理解任务怎样被硬件承接。**不要把一个 CUDA 线程想成永久独占一个物理计算核心。**
+因此，读代码时可以分成两层：`grid/block/thread` 说明任务怎样组织；warp 是线程的执行分组，由 SM 内的硬件承接。**不要把一个 CUDA 线程想成永久独占一个物理计算核心。**
 
 同一个 warp 内的线程如果走不同分支，执行相应路径时会有部分线程不参与，这就是理解分支分歧的起点。但“同属一个 warp”不能替代明确的线程协作与同步规则。线程间交换数据时，仍应使用适合其范围的同步机制。[Writing SIMT Kernels：Basics of SIMT](https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/writing-cuda-kernels.html#basics-of-simt)
 
@@ -128,6 +128,38 @@ nvcc -std=c++17 thread-layout.cu -o thread-layout
 ```
 
 预期记录之一为 `i=39 block=0 thread=39 warp_in_block=1 lane=7`；第 40 条全局记录进入 block 1，块内 thread、warp、lane 都重新从 0 开始。这些是按索引定义推导的值。
+
+### 3.3 把整个 GPU 的物理结构和逻辑结构对起来
+
+可以先把 GPU 想成由许多 SM 组成的计算设备，再放大其中一个 SM。下面画的是**面向 CUDA 计算的结构全景**：涵盖计算单元、片上存储、显存与 host 连接；省略图形、显示、视频等专用模块。它不是某一型号的精确芯片平面图，实际数量、分区和多芯粒组织依架构而变。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-basics/08-physical-logical.svg" target="_blank" rel="noopener"><img src="/images/cuda-basics/08-physical-logical.svg" alt="左侧 grid、block、warp、thread 对应右侧 GPU、SM、warp 调度器及寄存器；下方连接 L2、内存控制器与设备显存" loading="lazy"></a>
+<figcaption>图 2A：先沿右侧看硬件包含关系，再看左侧的任务怎样使用它。箭头表示承接关系，不是固定的一对一绑定。 <a href="/images/cuda-basics/08-physical-logical.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-basics/08-physical-logical.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+从外往里读右侧：
+
+1. **CPU 与主机内存**在 host 一侧。CPU 提交工作，并通过平台支持的连接与 GPU 传输数据；独立显卡常见 PCIe，特定平台也有其他 CPU–GPU 互连。它与 SM 内部访存不是同一层连接。
+2. **GPU 的计算部分**包含多组 SM。NVIDIA 把 SM 组织在 GPC（Graphics Processing Cluster）等硬件分组中；有些架构还会出现 TPC 等中间分组。初学写普通 kernel 时，不需要直接选择这些分组。
+3. **SM 内部**有 warp 调度器、寄存器文件、不同类型的执行单元，以及 load/store 单元。调度器从可执行的 warp 中发出指令；算术指令交给相应计算单元，访存指令交给访存通路。常说的 CUDA Core 是其中的算术执行资源，不能把它理解为一个固定运行某个 CUDA thread 的 CPU 核。
+4. **SM 附近的片上存储**包括 register、shared memory 和 L1。许多现代 NVIDIA GPU 的 L1 与 shared 使用同一块物理 SRAM 的不同容量分配，但两者的使用方式不同。SRAM 指静态随机访问存储器，常用于片上高速存储。
+5. **L2 位于 SM 之外**，服务多个 SM，物理上可以分成多个分区。再向外是内存控制器和设备 DRAM（动态随机访问存储器），也就是通常说的显存，例如 HBM 或 GDDR。HBM 可以与计算芯片同封装；同封装不等于位于 SM 内，也不等于寄存器或缓存。
+
+这些组件的角色和内存通路可以对照 [NVIDIA Programming Model](https://docs.nvidia.com/cuda/cuda-programming-guide/01-introduction/programming-model.html) 与 [Nsight Compute：GPU 和 Memory Chart 模型](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html) 阅读。
+
+| CUDA 代码里的逻辑对象 | 硬件如何承接 | 不能据此推断什么 |
+| --- | --- | --- |
+| 一次 kernel 的 grid | block 被分配到可用 SM，可能分多批执行 | grid 不要求全部 block 同时驻留 |
+| 一个普通 block | 其线程在同一个 SM 上执行，使用该 SM 的寄存器与 shared 等资源 | `blockIdx.x` 不是 SM 编号；一个 SM 可驻留多个 block |
+| 一个 warp | 同一 block 内最多 32 个线程位置，由 SM 的调度器发出指令 | 不保证一条 warp 指令只用一个时钟周期完成 |
+| 一个 thread | 有自己的索引、寄存器状态和执行状态；其指令使用 SM 内的功能单元 | 不永久独占某个 CUDA Core |
+| block 的 shared 数组 | 驻留 SM 上为该 block 分配的 shared 空间 | 不同 block 的同名数组不是同一份数据 |
+| global 数组 | 本例的分配由设备 DRAM 支撑，访问可能命中 L1/L2 | `A[i]` 不意味着每次都去显存芯片读取 |
+
+硬件层级中有 GPC，并不意味着普通 grid 下面必须添加一个对应它的逻辑对象。支持的设备上还可以显式使用 **thread block cluster**：计算能力 9.0 起提供这一可选层级，让一组 block 在同一个 GPC 内协同调度，并支持集群内同步与 distributed shared memory。本篇普通 kernel 没有启用 cluster，后文的 shared 都指普通块内用法。[Thread Block Clusters](https://docs.nvidia.com/cuda/cuda-programming-guide/01-introduction/programming-model.html#thread-block-clusters)
+
+用已有 demo 对照：`thread-layout.cu` 的 `<<<2, 40>>>` 表示一个 grid、两个 block、每块两个 warp，共 80 个线程。GPU 有多少个 SM 不会改变这些逻辑数量；实际驻留在哪个 SM，以及同一时刻驻留几个 block，由硬件和资源约束决定。
 
 ## 4. 线程怎样找到自己负责的数组元素
 
@@ -204,7 +236,76 @@ blocks = (N + T - 1) / T  // 整数除法
 
 对向量加法来说，各线程只读自己的 `A[i]`、`B[i]`，写自己的 `C[i]`，没有块内交换数据的需求，因此不需要为了“用上 GPU 特性”而添加 shared memory。
 
-### Unified Memory 为什么看起来少了拷贝步骤
+### 5.1 存储空间和缓存层级，为什么不能混成一个列表
+
+`global / shared / local` 主要回答程序访问哪种存储空间、谁可以访问；`L1 / L2 / DRAM` 则回答数据由哪个物理层级提供。**同一个 global 地址可以在显存中有数据，也在缓存中有副本。** L1、L2 不是需要分别 `cudaMalloc` 的两种数组。
+
+| 物理位置 | 对应的逻辑用途 | 谁负责管理内容 |
+| --- | --- | --- |
+| SM 的寄存器文件 | 保存线程的活跃值，例如加载结果、下标和中间结果 | 编译器分配；硬件执行寄存器读写 |
+| SM 的 shared 存储 | `__shared__` 数组，供一个普通 block 协作 | 程序显式写入、读取，并安排同步 |
+| SM 的 L1 数据缓存 | 缓存部分 global/local 等访问的数据，具体策略依架构与指令而定 | 硬件管理命中、填充和替换 |
+| 多个 SM 共用的 L2 | 缓存流向设备内存的访问数据 | 硬件管理，物理上可分区 |
+| 设备 DRAM（HBM/GDDR） | 本例 global 分配，以及需要使用 local 的线程私有存储 | 程序/运行时管理分配，硬件完成实际访问 |
+
+shared 和 L1 即便共享底层 SRAM，也不是同一种地址空间：普通 `A[i]` 的缓存命中不会自动变成 `tile[i]`；声明 shared 数组也不会自动把 global 数据搬进去。[Nsight Compute：Memory Chart](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#memory-chart)
+
+这样的分层让容量与访问成本有所取舍：靠近执行单元的片上存储容量有限，设备 DRAM 则提供更大的存储空间。实际访问耗时还受命中率、带宽、竞争和指令影响，不能给每一层贴一个适用于所有 GPU 的固定延迟。
+
+### 5.2 跟踪一次 `float x = A[i]`：请求向外走，数据送回寄存器
+
+假设 `A` 指向当前 GPU 的普通设备分配、编译器确实生成了这次普通标量 global load，并且该指令允许使用 L1 缓存。先忽略地址翻译、只读专用通路和异步拷贝等细节：
+
+1. 线程计算自己的地址。一个 warp 执行这条 load 时，活跃线程的地址交给访存单元；硬件按地址分布组合、拆分为相应访问请求。因此，“32 个线程”不等于“向显存发送 32 次独立读取”。
+2. 请求检查本 SM 的 **L1**。需要的数据已经在这里时，可以由 L1 提供；不需要为这次命中的部分继续读取 L2 或 DRAM。
+3. L1 未命中的部分交给 **L2**。L2 命中则从 L2 返回；只有仍未命中的部分才继续访问设备内存。
+4. L2 也未命中时，通过**内存控制器**读取 HBM/GDDR。返回的数据按具体缓存策略处理，最终把线程需要的值交给目标寄存器。
+5. 后面的 `x + 1` 依赖加载结果。等待这个结果的指令不能提前使用它；SM 可以发出其他就绪 warp 的指令，但不保证总能隐藏等待时间。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-basics/09-load-path.svg" target="_blank" rel="noopener"><img src="/images/cuda-basics/09-load-path.svg" alt="global load 请求按条件查询 L1、L2 与 DRAM；任一命中层向目标寄存器返回数据，shared 不在这条必经路径上" loading="lazy"></a>
+<figcaption>图 4A：橙色是向外查找的请求，绿色是数据返回。图中假定允许 L1 缓存；命中哪一层就由哪一层提供数据。 <a href="/images/cuda-basics/09-load-path.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-basics/09-load-path.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+寄存器在这里是**加载的目的地**，不是执行新 load 之前先查找的一级地址缓存。若 `x` 已经保存在寄存器，后续复用 `x` 直接使用寄存器值即可；这是复用已取得的值，而不是又执行了一次对 `A[i]` 的 load。编译器也可能消除重复加载，不能仅凭 C++ 代码行数计算真实访存次数。
+
+还要保留两个边界：有些加载会绕过 L1，直接使用 L2 通路；一个 warp 的请求也可能有一部分命中、一部分未命中。图中为了入门只跟踪一个所需数据片段，不假设所有线程总是命中同一层。缓存命中也不能替代线程间同步。[Nsight Compute：L1/TEX Cache](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#l1-tex-cache) · [CUDA Best Practices：Memory Optimizations](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#memory-optimizations)
+
+### 小 demo：切换访问对象，看路径是否还经过显存
+
+先选择 global load，依次切换 L1 命中、L2 命中、全部未命中；再切换到 shared 和寄存器。这里的命中状态由你指定，用于解释路径，不预测真实缓存命中率，也不模拟延迟。local 一项假定编译器确实产生了 local memory 访问。
+
+<div class="cuda-demo" data-cuda-demo="memory"><p>启用 JavaScript 可切换 global、shared、register、local 的读取路径。</p></div>
+
+### 5.3 shared memory 怎样接到这条路径上
+
+shared memory 是程序显式使用的另一条分支，不是 `register → shared → L1 → L2 → DRAM` 这种自动查找链中的一级。普通 C++ 写法 `tile[t] = A[i]` 通常先执行 global load 得到寄存器临时值，再执行 shared store。支持的异步拷贝指令可以直接把 global 数据送入 shared、绕过中间寄存器；这是后续进阶路径，不能用来推断所有普通赋值的实现。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-basics/10-shared-reuse.svg" target="_blank" rel="noopener"><img src="/images/cuda-basics/10-shared-reuse.svg" alt="global 数据通过普通加载和 shared store 填入 shared；块内同步后，线程通过 shared load 读入寄存器并计算" loading="lazy"></a>
+<figcaption>图 4B：上半部是显式搬运，下半部是块内复用。shared load 本身不需要再次查询原 global 地址的 L1/L2/DRAM。 <a href="/images/cuda-basics/10-shared-reuse.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-basics/10-shared-reuse.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+将后面的 `shared-rotate.cu` 核心语句拆开，就能逐行对上硬件。下面是用于理解的代码片段，假设每个 block 恰好 4 个线程、输入长度是 4 的倍数：
+
+```cpp
+__shared__ float tile[4];
+int t = threadIdx.x;
+int i = blockIdx.x * blockDim.x + t;
+float x = input[i];          // global load：缓存或 DRAM → 寄存器
+tile[t] = x;               // shared store：寄存器 → 本块 shared
+__syncthreads();             // 本块参与线程写完之后，才能互读
+float y = tile[(t + 1) % 4]; // shared load：本块 shared → 寄存器
+output[i] = y;              // global store：走写入通路
+```
+
+例如 block 0 的 thread 0 先把 `input[0]` 搬进 `tile[0]`；屏障后读取的是 thread 1 已写入的 `tile[1]`。这次 shared load 直接使用 shared 中的数据，不需要重新沿 global 路径读取 `input[1]`。该例主要展示协作；是否加速需要实测。
+
+这里的变量名只是源码概念，具体是否分配独立寄存器以及使用什么机器指令由编译器决定。最后一行是 **store**，其缓存策略与可见性规则不能简单套用前面的 load 命中流程。普通缓存也不是 block 间通信的同步机制。
+
+线程私有的 **local memory** 则是另一种容易误会的情况：它的“私有”是逻辑范围，实际存储由设备内存支撑，读取可能经过缓存。寄存器压力导致 spill 时，某些原本希望留在寄存器的值需要保存到 local、随后重新加载；因此“多用局部变量”并不自动等于“只访问 SM 寄存器”。[Writing SIMT Kernels：Memory Spaces](https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/writing-cuda-kernels.html) · [Nsight Compute：Load Global Store Shared](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#memory-chart)
+
+### 5.4 Unified Memory 为什么看起来少了拷贝步骤
 
 一些入门教程使用 `cudaMallocManaged`，使同一份 managed allocation 能被 CPU 和 GPU 代码访问。它简化了内存管理，但不意味着数据访问没有代价，也不取消读写之间的同步要求；具体机制与平台能力有关。本篇选择显式拷贝，方便先看清数据位置。[Unified and System Memory](https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/understanding-memory.html)
 
@@ -464,6 +565,7 @@ PASS: 10 elements; C[9] = 27
 | 精确核对 API | [API Synchronization Behavior](https://docs.nvidia.com/cuda/cuda-runtime-api/api-sync-behavior.html) | 拷贝方向和内存类型对应的阻塞行为 |
 | 补充内存理解 | [Unified and System Memory](https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/understanding-memory.html) | managed memory 与平台差异 |
 | 进阶阅读 | [Using Shared Memory in CUDA C/C++](https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/) | 块内数据交换与同步；2013 年文章中的旧架构参数不当作当前硬件规格 |
+| 对照物理访存通路 | [Nsight Compute Profiling Guide](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#memory-chart) | 逻辑存储空间与 L1/shared/L2/设备内存的对应 |
 | 开始性能实践时 | [CUDA Best Practices Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html) | 合并访存、传输成本与测量方法 |
 
 官方在线文档会更新。学习具体 API 或硬件行为时，应再核对自己使用的 Toolkit 版本与 GPU 架构；本篇的目的，是先建立足够清楚的概念关系，能够带着问题继续查资料。

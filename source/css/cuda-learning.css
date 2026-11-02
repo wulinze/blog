@@ -22,3 +22,6 @@
 .cuda-diagram figcaption { color: #aab6c5; font-size: 14px; line-height: 1.8; padding: 10px 2px 0; }
 .cuda-diagram figcaption a { white-space: nowrap; }
 @media (max-width: 767px) { .cuda-demo { padding: 14px; } .cuda-demo .demo-output { font-size: 13px; } }
+
+.cuda-demo select { max-width: 100%; min-width: 0; }
+.cuda-demo select:disabled { opacity: .45; }
