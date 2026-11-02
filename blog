@@ -37,4 +37,9 @@ if [ "$#" = 0 ]; then
     './blog publish -- "更新说明"   检查、推送源码并发布网站'
   exit 0
 fi
+if [ "$1" = dev ]; then
+  # Polling avoids macOS file watcher limits in editor/sandbox environments.
+  export CHOKIDAR_USEPOLLING="${CHOKIDAR_USEPOLLING:-true}"
+  export CHOKIDAR_INTERVAL="${CHOKIDAR_INTERVAL:-500}"
+fi
 exec npm run "$@"
