@@ -1,0 +1,14 @@
+.gpu-lab { margin: 1.5rem 0; padding: 1.1rem; border: 1px solid #43516a; border-radius: 12px; background: #151e2a; color: #dbe6f3; }
+.gpu-lab h3 { margin-top: 0; }
+.gpu-lab-controls { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: 12px; }
+.gpu-lab label { display: flex; flex-direction: column; gap: 5px; font-size: 14px; }
+.gpu-lab input,.gpu-lab select { width: 100%; box-sizing: border-box; border: 1px solid #61708a; border-radius: 5px; background: #101723; color: #edf3ff; padding: 8px; font: inherit; }
+.gpu-lab input:focus-visible,.gpu-lab select:focus-visible { outline: 2px solid #79bcff; }
+.gpu-lab output { display: block; margin-top: 18px; white-space: pre-line; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.gpu-lab svg { display: block; width: 100%; height: auto; margin-top: 16px; }
+.gpu-source { margin: 1rem 0; }
+.gpu-source summary { cursor: pointer; padding: .75rem; background: #1a2634; border-radius: 8px; }
+@media(max-width:480px) { .gpu-lab-controls { grid-template-columns: repeat(2,minmax(0,1fr)); } .gpu-lab { padding: .8rem; } }
+
+.gpu-roofplot { max-width: 100%; overflow-x: auto; }
+.gpu-roofplot svg { min-width: 640px; }

@@ -1,0 +1,687 @@
+{
+  "source": "leetcuda-20261029.pdf",
+  "pages": 591,
+  "topics": [
+    {
+      "group": "机器、执行与测量",
+      "title": "GPU 架构与 Roofline：先预测，再测量",
+      "source_chapters": [
+        2
+      ],
+      "pdf_pages": [
+        34,
+        42
+      ],
+      "goal": "读懂逻辑流量、分层流量和两种时间下界",
+      "triton": "向量加法与 axpy；扫 tile / num_warps",
+      "tilelang": "同样语义；扫 T.Parallel 范围 / threads",
+      "acceptance": "先跑边界校验，再解释工作集与请求带宽；能说明为什么 roofline 不是测速结果",
+      "slug": "gpu-roofline",
+      "status": "published"
+    },
+    {
+      "group": "基础并行原语与行算子",
+      "title": "归约与点积：从一组数到一个结果",
+      "source_chapters": [
+        3
+      ],
+      "pdf_pages": [
+        43,
+        51
+      ],
+      "goal": "warp 内交换、block 两级归约、跨 block 合并与浮点误差",
+      "triton": "块内 tl.sum；两阶段 dot，处理尾部",
+      "tilelang": "fragment 归约；多 block partial 与最终合并",
+      "acceptance": "比较 FP64 参考，测非整除长度；解释为何不能在普通 grid 内随意全局同步",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "基础并行原语与行算子",
+      "title": "访问粒度与原子冲突：向量化和直方图",
+      "source_chapters": [
+        4
+      ],
+      "pdf_pages": [
+        52,
+        59
+      ],
+      "goal": "区分合并访存、单线程宽访存和原子串行化",
+      "triton": "连续 / 跨距访问；整数 histogram",
+      "tilelang": "宽 copy；每 block 局部 histogram 后合并",
+      "acceptance": "同一有效数据量比较请求；均匀与热点分布均正确，直方图总数守恒",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "基础并行原语与行算子",
+      "title": "稳定 Softmax：从整行到在线状态",
+      "source_chapters": [
+        5
+      ],
+      "pdf_pages": [
+        60,
+        69
+      ],
+      "goal": "减最大值，推导分块 max 与 sum 的重缩放",
+      "triton": "单行 softmax；长行分块状态",
+      "tilelang": "reduce_max / reduce_sum；online 两状态",
+      "acceptance": "极大输入不溢出，行和接近 1；空行与全 mask 行有明确约定",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "基础并行原语与行算子",
+      "title": "LSE 与注意力状态合并",
+      "source_chapters": [
+        6
+      ],
+      "pdf_pages": [
+        70,
+        77
+      ],
+      "goal": "把归一化输出与 log-sum-exp 组合成可合并状态",
+      "triton": "实现两段与多段 LSE merge",
+      "tilelang": "并行分段 merge；避免额外中间张量",
+      "acceptance": "分段合并对齐完整参考，覆盖空段与两边都空，明确对数底",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "基础并行原语与行算子",
+      "title": "RMSNorm 与 LayerNorm：统计量和广播",
+      "source_chapters": [
+        7
+      ],
+      "pdf_pages": [
+        78,
+        87
+      ],
+      "goal": "理解平方均值、中心化方差、eps 与稳定计算",
+      "triton": "fused RMSNorm；LayerNorm 两遍统计",
+      "tilelang": "fragment 归约；比较两遍方差与 Welford",
+      "acceptance": "小方差、大偏置、非整除 hidden size；匹配 eps 和方差定义",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "基础并行原语与行算子",
+      "title": "RoPE 与转置：数据重排为何影响性能",
+      "source_chapters": [
+        8
+      ],
+      "pdf_pages": [
+        88,
+        98
+      ],
+      "goal": "旋转配对、相对位置性质、global 合并与 shared bank",
+      "triton": "两种 RoPE 配对格式；带尾部转置",
+      "tilelang": "shared 中转转置；padding 布局实验",
+      "acceptance": "旋转范数近似保持，转置两次还原；手算真实 lane 地址后再判断冲突",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "矩阵乘与多层复用",
+      "title": "GEMV：如何把一行交给 warp",
+      "source_chapters": [
+        9
+      ],
+      "pdf_pages": [
+        99,
+        106
+      ],
+      "goal": "长短 K 的并行分工，矩阵流量与向量复用",
+      "triton": "每 program 一行与多行 GEMV",
+      "tilelang": "线程划分变化；短 K 多行打包",
+      "acceptance": "M/K 尾部正确，区分任务太少与 DRAM 吞吐受限",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "矩阵乘与多层复用",
+      "title": "GEMM：block tile 与寄存器 tile",
+      "source_chapters": [
+        10
+      ],
+      "pdf_pages": [
+        107,
+        117
+      ],
+      "goal": "从 2MNK 推导复用收益，区分 block / thread tile",
+      "triton": "带 mask 的 tl.dot matmul；扫 BM/BN/BK",
+      "tilelang": "shared tile + fragment accumulator + T.gemm",
+      "acceptance": "非方阵和尾块正确；解释 BK 与输出 tile 改变的不同资源",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "矩阵乘与多层复用",
+      "title": "精度与异步搬运：TF32 和双缓冲",
+      "source_chapters": [
+        11
+      ],
+      "pdf_pages": [
+        118,
+        128
+      ],
+      "goal": "区分精度改变、Tensor Core 通路与 cp.async 时序",
+      "triton": "切换 input_precision；分开报告误差与时间",
+      "tilelang": "num_stages 对照；检查生成的 async 指令",
+      "acceptance": "必须先报告精度，再谈速度；只看到异步指令不算 overlap 已被证明",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "矩阵乘与多层复用",
+      "title": "MMA 与 fragment：理解协作计算的数据归属",
+      "source_chapters": [
+        12
+      ],
+      "pdf_pages": [
+        129,
+        141
+      ],
+      "goal": "lane / fragment / ldmatrix 与多级流水",
+      "triton": "检查 dot 的 lowering；扩展题使用显式布局",
+      "tilelang": "用布局可视化追踪 A/B/C 的 fragment",
+      "acceptance": "独立核对每个输出坐标与覆盖；不能把高层 tile 当每线程存储量",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "矩阵乘与多层复用",
+      "title": "布局与调度：三种不同的 swizzle",
+      "source_chapters": [
+        13
+      ],
+      "pdf_pages": [
+        142,
+        159
+      ],
+      "goal": "shared 地址 XOR、寄存器双缓冲、CTA 顺序互不等价",
+      "triton": "grouped program ordering；比较工作集复用",
+      "tilelang": "shared swizzle 与分块调度分别做 A/B",
+      "acceptance": "验证映射一一对应，再用实际访问组验证 bank；不混淆 L2 与 shared",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "矩阵乘与多层复用",
+      "title": "TMA 与 WGMMA：Hopper 的完成协议",
+      "source_chapters": [
+        14
+      ],
+      "pdf_pages": [
+        160,
+        175
+      ],
+      "goal": "descriptor、transaction barrier、异步 MMA 与 slot 释放",
+      "triton": "Hopper descriptor / persistent matmul 练习，先检查支持",
+      "tilelang": "TMA 搬运与 gemm 流水；核对生成屏障",
+      "acceptance": "列出 arrive、expected bytes、完成和复用事件；目标硬件不支持时仅做协议模拟",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "矩阵乘与多层复用",
+      "title": "SM120 的生产消费流水",
+      "source_chapters": [
+        15
+      ],
+      "pdf_pages": [
+        176,
+        190
+      ],
+      "goal": "架构能力边界、mma.sync 与资源分配协议",
+      "triton": "在目标设备检查生成指令和支持路径",
+      "tilelang": "producer/consumer 方案与常规方案对照",
+      "acceptance": "能力核验在前；不能照搬 Hopper WGMMA，资源池预算与死锁条件须可解释",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "注意力：从数学状态到分工",
+      "title": "FlashAttention：为什么可以不写出分数矩阵",
+      "source_chapters": [
+        16
+      ],
+      "pdf_pages": [
+        191,
+        204
+      ],
+      "goal": "QK、online softmax、PV 的状态不变量与 IO",
+      "triton": "小尺寸 fused attention 与逐块 CPU 参考",
+      "tilelang": "分块 QK / PV；维护 m、l、O",
+      "acceptance": "与完整 attention 对齐，覆盖 causal、尾块；解释旧输出为何也必须缩放",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "注意力：从数学状态到分工",
+      "title": "Split-Q：让每组线程拥有自己的查询行",
+      "source_chapters": [
+        17
+      ],
+      "pdf_pages": [
+        205,
+        226
+      ],
+      "goal": "减少跨 warp 归约；S/P 布局如何交给下一次 MMA",
+      "triton": "查询分块 attention；改变 BQ/BK",
+      "tilelang": "QK fragment 到 PV fragment 的交接",
+      "acceptance": "每行状态有明确 owner；区分减少同步与增加重复加载",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "注意力：从数学状态到分工",
+      "title": "注意力的双流水：K、V 与角色分工",
+      "source_chapters": [
+        18
+      ],
+      "pdf_pages": [
+        227,
+        244
+      ],
+      "goal": "不同数据的就绪时机，stage 占用和 full/empty 协议",
+      "triton": "比较编译器流水配置与支持的 warp specialization",
+      "tilelang": "分别调 K/V stages，追踪 consumer 释放",
+      "acceptance": "短序列、单 tile、尾 tile 先通过；生产/消费不平衡需要时间线证据",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "注意力：从数学状态到分工",
+      "title": "多 consumer 与分段合并",
+      "source_chapters": [
+        19
+      ],
+      "pdf_pages": [
+        245,
+        258
+      ],
+      "goal": "区分书中双 consumer 方案与泛称 FA3；合并局部状态",
+      "triton": "split-KV attention + LSE merge",
+      "tilelang": "多 consumer 结构或分 kernel 等价基线",
+      "acceptance": "单段退化、奇数 KV tile、空段均正确；合并成本计入总时间",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "注意力：从数学状态到分工",
+      "title": "大 head_dim：Split-D 的两次分块",
+      "source_chapters": [
+        20
+      ],
+      "pdf_pages": [
+        259,
+        276
+      ],
+      "goal": "QK 的 D 归约与 PV 的输出 D 分块不同",
+      "triton": "D 分块点积后再 softmax；多输出 D tile",
+      "tilelang": "QK 与 PV 使用不同 fragment 形状",
+      "acceptance": "先完成完整点积再做 softmax；比较 D=64/128/256/非整除",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "布局代数与 CuTe 思维迁移",
+      "title": "Layout：坐标、地址与可逆映射",
+      "source_chapters": [
+        21
+      ],
+      "pdf_pages": [
+        310,
+        324
+      ],
+      "goal": "从 shape/stride 到 composition、divide 与 product",
+      "triton": "构造同逻辑张量的连续与转置 view",
+      "tilelang": "可视化 layout；核对 element 到 thread/value 映射",
+      "acceptance": "Python 小模型穷举地址；分清逻辑 reshape 与真实搬运",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "布局代数与 CuTe 思维迁移",
+      "title": "Copy 的归属：谁搬什么，搬到哪里",
+      "source_chapters": [
+        22
+      ],
+      "pdf_pages": [
+        325,
+        337
+      ],
+      "goal": "Tensor 视图与 TiledCopy 的 thread/value 划分",
+      "triton": "不同 tile 载入映射，跟踪 mask 与布局",
+      "tilelang": "T.copy 的 global/shared/fragment 路径",
+      "acceptance": "覆盖无遗漏、无非法重叠；对齐、向量宽度和尾部都可解释",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "布局代数与 CuTe 思维迁移",
+      "title": "MMA 的归属：从原子到输出 fragment",
+      "source_chapters": [
+        23
+      ],
+      "pdf_pages": [
+        338,
+        349
+      ],
+      "goal": "TiledMMA 分层与 A/B/C 的不同坐标映射",
+      "triton": "dot 两端布局变化及编译器中间表示",
+      "tilelang": "T.gemm 片段分配和 accumulator 可视化",
+      "acceptance": "元素计数守恒；点积输入布局与输出布局不能直接混用",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "布局代数与 CuTe 思维迁移",
+      "title": "Swizzle 与 TMA 的地址契约",
+      "source_chapters": [
+        24
+      ],
+      "pdf_pages": [
+        350,
+        361
+      ],
+      "goal": "软件访问地址必须匹配 descriptor 生成的布局",
+      "triton": "descriptor 路径与普通 load 的等价验证",
+      "tilelang": "显式 swizzle 与 TMA copy 配对实验",
+      "acceptance": "先小 tile round-trip，再接 MMA；分别核验对齐、base 与 phase",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "布局代数与 CuTe 思维迁移",
+      "title": "布局驱动的 GEMM 工程",
+      "source_chapters": [
+        25
+      ],
+      "pdf_pages": [
+        362,
+        377
+      ],
+      "goal": "把数据布局、搬运划分、计算划分组合起来",
+      "triton": "有 epilogue 的矩阵乘，完整基线对照",
+      "tilelang": "共享内存布局 + 流水 + 向量写回",
+      "acceptance": "核心、epilogue 与尾块逐层校验，源码/配置/版本一起保存",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "布局代数与 CuTe 思维迁移",
+      "title": "Attention 实现对照：统一流水、角色分工与双 consumer",
+      "source_chapters": [
+        26
+      ],
+      "pdf_pages": [
+        378,
+        396
+      ],
+      "goal": "同一数学接口下比较不同数据流组织",
+      "triton": "对同一输入公平比较普通与 specialized 路径",
+      "tilelang": "对同一输入比较 cp.async / TMA 方案",
+      "acceptance": "统一 mask、精度、计时范围；不把框架差异都归因于某一条指令",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "布局代数与 CuTe 思维迁移",
+      "title": "大 D 的布局代数与寄存器预算",
+      "source_chapters": [
+        27
+      ],
+      "pdf_pages": [
+        397,
+        413
+      ],
+      "goal": "QK/PV 两套 tile 与中间 P 的布局衔接",
+      "triton": "不同 D 分块布局的 equivalent kernel",
+      "tilelang": "双 GEMM 片段与寄存器生命周期实验",
+      "acceptance": "手算元素归属，检查 spill 与 shared；禁用不能证明的 reinterpret",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "架构专用调度与完整流水",
+      "title": "Persistent Attention：任务循环与尾波",
+      "source_chapters": [
+        28
+      ],
+      "pdf_pages": [
+        414,
+        428
+      ],
+      "goal": "CTA 常驻循环、linear task assignment、条件重缩放",
+      "triton": "persistent work queue 与普通 grid 对照",
+      "tilelang": "persistent attention 及 epilogue 路径",
+      "acceptance": "任务无漏算/重算，短长序列都测；比较整段时间，不能预设胜过厂商库",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "架构专用调度与完整流水",
+      "title": "大 D 的 non-WS 流水：让所有线程参与 MMA",
+      "source_chapters": [
+        29
+      ],
+      "pdf_pages": [
+        429,
+        445
+      ],
+      "goal": "chunk 解耦、跨 tile 预取、独立 barrier 集",
+      "triton": "全员计算路径与分工路径的调参对照",
+      "tilelang": "独立 K/V stages 与 non-WS 编排",
+      "acceptance": "先画 buffer 生命周期，再测寄存器/等待/时间；更多 stage 不保证更快",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "低精度矩阵乘：格式、scale 与误差",
+      "title": "FP8 的格式与量化前处理",
+      "source_chapters": [
+        30
+      ],
+      "pdf_pages": [
+        446,
+        454
+      ],
+      "goal": "e4m3、动态范围、per-row/per-block scale",
+      "triton": "amax 与缩放量化；零块和离群点",
+      "tilelang": "归约 + 转换融合；scale 排布",
+      "acceptance": "重建误差与饱和计数；明确舍入和 scale 方向，先不要求 Tensor Core",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "低精度矩阵乘：格式、scale 与误差",
+      "title": "FP8 GEMM：scale 如何进入累加",
+      "source_chapters": [
+        31
+      ],
+      "pdf_pages": [
+        455,
+        469
+      ],
+      "goal": "在线反量化、缩放粒度和矩阵乘等价式",
+      "triton": "FP8 dot 与 scale 应用",
+      "tilelang": "FP8 GEMM + scale epilogue",
+      "acceptance": "与反量化参考对齐，前处理成本计入端到端；不同 K scale 不能直接外提",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "低精度矩阵乘：格式、scale 与误差",
+      "title": "NVFP4：两级 scale 与打包",
+      "source_chapters": [
+        32
+      ],
+      "pdf_pages": [
+        470,
+        481
+      ],
+      "goal": "4-bit 线格式、global/block scale、误差来源",
+      "triton": "软件量化/打包参考；支持时 scaled dot",
+      "tilelang": "FP4 packing 与 scale layout",
+      "acceptance": "逐 byte round-trip；零值、极值、奇数长度和饱和策略均有定义",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "低精度矩阵乘：格式、scale 与误差",
+      "title": "Block-scaled MMA：scale 也是操作数",
+      "source_chapters": [
+        33
+      ],
+      "pdf_pages": [
+        482,
+        497
+      ],
+      "goal": "scale fragment、数据布局与流水的协同",
+      "triton": "目标架构支持的 block-scaled matmul",
+      "tilelang": "数据和 scale 的协作加载",
+      "acceptance": "每个 scale 与正确数据块对应；对齐厂商库数值约定后再测",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "量化注意力与最终验收",
+      "title": "量化 Attention：误差在哪里被放大",
+      "source_chapters": [
+        34
+      ],
+      "pdf_pages": [
+        498,
+        510
+      ],
+      "goal": "Q/K/V/P 的误差传播、平滑与不变性",
+      "triton": "高精度参考对照分步量化误差",
+      "tilelang": "按阶段插入量化并保留误差日志",
+      "acceptance": "区分 logits、概率、输出误差；极端分布/长序列都要覆盖",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "量化注意力与最终验收",
+      "title": "FP8 Attention 的前处理链",
+      "source_chapters": [
+        35
+      ],
+      "pdf_pages": [
+        511,
+        523
+      ],
+      "goal": "融合、平滑、量化及 scale 生成",
+      "triton": "融合前处理与多 kernel 基线",
+      "tilelang": "归约、转置与量化的 tile 融合",
+      "acceptance": "各中间量均可核验，先测端到端占比再优化主 kernel",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "量化注意力与最终验收",
+      "title": "FP8 persist-D 与 scale 折叠",
+      "source_chapters": [
+        36
+      ],
+      "pdf_pages": [
+        524,
+        534
+      ],
+      "goal": "保持 D 的注意力流水与合法的 scale 外提",
+      "triton": "固定 D 的量化 attention 与反量化参考",
+      "tilelang": "scale 融入 QK / PV 与输出修正",
+      "acceptance": "证明每个外提条件，动态 range 与不同 shape 下误差达标",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "量化注意力与最终验收",
+      "title": "FP8 大 D：Split-D 与并行布局",
+      "source_chapters": [
+        37
+      ],
+      "pdf_pages": [
+        535,
+        543
+      ],
+      "goal": "工作量增加与寄存器增长是不同瓶颈",
+      "triton": "大 D 的分块与任务划分对照",
+      "tilelang": "M/N 方向的 warp 排布与流水调整",
+      "acceptance": "并行度、spill 与耗时分别记录；不能仅看 occupancy",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "量化注意力与最终验收",
+      "title": "FP4 Attention 的量化链",
+      "source_chapters": [
+        38
+      ],
+      "pdf_pages": [
+        544,
+        553
+      ],
+      "goal": "NVFP4 格式在 Q/K/V 预处理中的应用",
+      "triton": "软件 packed 参考与完整前处理",
+      "tilelang": "两级 scale 生成和打包融合",
+      "acceptance": "数据/scale 同时对齐，精度与转换成本单独报告",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "量化注意力与最终验收",
+      "title": "FP4 Attention：P 的两级量化",
+      "source_chapters": [
+        39
+      ],
+      "pdf_pages": [
+        554,
+        560
+      ],
+      "goal": "online 状态、P 量化与输出缩放的交互",
+      "triton": "量化 P 的逐阶段误差定位",
+      "tilelang": "block-scaled PV 与 rescale 的接口",
+      "acceptance": "各 KV tile 后验证状态；短序列正确不能代替长序列稳定性",
+      "slug": null,
+      "status": "planned"
+    },
+    {
+      "group": "量化注意力与最终验收",
+      "title": "基准与精度：把学习结果变成可复现实验",
+      "source_chapters": [
+        40
+      ],
+      "pdf_pages": [
+        561,
+        570
+      ],
+      "goal": "环境、计时、缓存、误差统计和生态约束",
+      "triton": "统一测试 harness 与多形状报表",
+      "tilelang": "相同 harness 跑等价语义实现",
+      "acceptance": "同时交付正确性、精度分布、端到端时间、条件和失败案例",
+      "slug": null,
+      "status": "planned"
+    }
+  ],
+  "auxiliary": [
+    {
+      "title": "CuTe 布局白皮书译注",
+      "pdf_pages": [
+        277,
+        309
+      ],
+      "purpose": "布局主题的补充推导"
+    },
+    {
+      "title": "基础设施、性能汇总、构建、源码索引、参考资料",
+      "pdf_pages": [
+        571,
+        591
+      ],
+      "purpose": "并入环境准备、验证与延伸阅读；不将原文性能表当作本站实测"
+    }
+  ]
+}
