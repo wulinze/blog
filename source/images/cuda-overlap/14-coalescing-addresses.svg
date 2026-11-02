@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="960" viewBox="0 0 1100 960" role="img"><g font-family="Xiaolai, 'PingFang SC', 'Microsoft YaHei', sans-serif"><title>6.1 · 合并访存：同一条 load，线程的地址是否挨在一起？</title>
+<rect x="0" y="0" width="1100" height="960" rx="5" fill="#fffdf6" stroke="#fffdf6" stroke-width="1.5"/>
+<text x="34" y="56" font-size="30" fill="#243247">6.1 · 合并访存：同一条 load，线程的地址是否挨在一起？</text>
+<text x="34" y="100" font-size="22" fill="#667286">向下沿箭头读：线程 → float 下标 → 覆盖的 32-byte sector。</text>
+<text x="34" y="133" font-size="21" fill="#667286">只展开 lane 0–7；每个 float 是 4 byte，起始地址按 32 byte 对齐。</text>
+<rect x="28" y="164" width="1044" height="280" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="48" y="206" font-size="24" fill="#243247">① 跨步访问：lane t 读取 in[32*t]，相邻线程相隔 128 byte</text>
+<rect x="69" y="233" width="72" height="38" rx="5" fill="#fbe2df" stroke="#243247" stroke-width="1.5"/>
+<text x="78" y="258" font-size="20" fill="#243247">t0</text>
+<path d="M 105 277 L 105 313" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 101.08531019299893 304.8959760788259 L 105 313 L 108.91468980700107 304.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="62" y="336" font-size="18" fill="#243247">in[0]</text>
+<rect x="52" y="357" width="12" height="28" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<rect x="64" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="76" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="88" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="100" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="112" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="124" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="136" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<text x="58" y="412" font-size="17" fill="#243247">sector 0</text>
+<rect x="195" y="233" width="72" height="38" rx="5" fill="#fbe2df" stroke="#243247" stroke-width="1.5"/>
+<text x="204" y="258" font-size="20" fill="#243247">t1</text>
+<path d="M 231 277 L 231 313" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 227.08531019299892 304.8959760788259 L 231 313 L 234.91468980700108 304.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="188" y="336" font-size="18" fill="#243247">in[32]</text>
+<rect x="178" y="357" width="12" height="28" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<rect x="190" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="202" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="214" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="226" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="238" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="250" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="262" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<text x="184" y="412" font-size="17" fill="#243247">sector 4</text>
+<rect x="321" y="233" width="72" height="38" rx="5" fill="#fbe2df" stroke="#243247" stroke-width="1.5"/>
+<text x="330" y="258" font-size="20" fill="#243247">t2</text>
+<path d="M 357 277 L 357 313" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 353.0853101929989 304.8959760788259 L 357 313 L 360.9146898070011 304.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="314" y="336" font-size="18" fill="#243247">in[64]</text>
+<rect x="304" y="357" width="12" height="28" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<rect x="316" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="328" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="340" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="352" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="364" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="376" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="388" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<text x="310" y="412" font-size="17" fill="#243247">sector 8</text>
+<rect x="447" y="233" width="72" height="38" rx="5" fill="#fbe2df" stroke="#243247" stroke-width="1.5"/>
+<text x="456" y="258" font-size="20" fill="#243247">t3</text>
+<path d="M 483 277 L 483 313" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 479.0853101929989 304.8959760788259 L 483 313 L 486.9146898070011 304.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="440" y="336" font-size="18" fill="#243247">in[96]</text>
+<rect x="430" y="357" width="12" height="28" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<rect x="442" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="454" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="466" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="478" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="490" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="502" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="514" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<text x="436" y="412" font-size="17" fill="#243247">sector 12</text>
+<rect x="573" y="233" width="72" height="38" rx="5" fill="#fbe2df" stroke="#243247" stroke-width="1.5"/>
+<text x="582" y="258" font-size="20" fill="#243247">t4</text>
+<path d="M 609 277 L 609 313" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 605.0853101929989 304.8959760788259 L 609 313 L 612.9146898070011 304.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="566" y="336" font-size="18" fill="#243247">in[128]</text>
+<rect x="556" y="357" width="12" height="28" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<rect x="568" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="580" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="592" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="604" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="616" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="628" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="640" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<text x="562" y="412" font-size="17" fill="#243247">sector 16</text>
+<rect x="699" y="233" width="72" height="38" rx="5" fill="#fbe2df" stroke="#243247" stroke-width="1.5"/>
+<text x="708" y="258" font-size="20" fill="#243247">t5</text>
+<path d="M 735 277 L 735 313" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 731.0853101929989 304.8959760788259 L 735 313 L 738.9146898070011 304.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="692" y="336" font-size="18" fill="#243247">in[160]</text>
+<rect x="682" y="357" width="12" height="28" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<rect x="694" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="706" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="718" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="730" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="742" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="754" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="766" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<text x="688" y="412" font-size="17" fill="#243247">sector 20</text>
+<rect x="825" y="233" width="72" height="38" rx="5" fill="#fbe2df" stroke="#243247" stroke-width="1.5"/>
+<text x="834" y="258" font-size="20" fill="#243247">t6</text>
+<path d="M 861 277 L 861 313" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 857.0853101929989 304.8959760788259 L 861 313 L 864.9146898070011 304.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="818" y="336" font-size="18" fill="#243247">in[192]</text>
+<rect x="808" y="357" width="12" height="28" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<rect x="820" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="832" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="844" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="856" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="868" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="880" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="892" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<text x="814" y="412" font-size="17" fill="#243247">sector 24</text>
+<rect x="951" y="233" width="72" height="38" rx="5" fill="#fbe2df" stroke="#243247" stroke-width="1.5"/>
+<text x="960" y="258" font-size="20" fill="#243247">t7</text>
+<path d="M 987 277 L 987 313" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 983.0853101929989 304.8959760788259 L 987 313 L 990.9146898070011 304.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="944" y="336" font-size="18" fill="#243247">in[224]</text>
+<rect x="934" y="357" width="12" height="28" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<rect x="946" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="958" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="970" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="982" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="994" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="1006" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<rect x="1018" y="357" width="12" height="28" rx="5" fill="#fffdf6" stroke="#243247" stroke-width="1.5"/>
+<text x="940" y="412" font-size="17" fill="#243247">sector 28</text>
+<text x="48" y="473" font-size="21" fill="#667286">橙色是本次需要的 float；空白格未使用。中间未触及的 sector 已省略。</text>
+<rect x="28" y="503" width="1044" height="255" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="48" y="544" font-size="24" fill="#243247">② 连续访问：lane t 读取 in[t]，8 个相邻线程正好覆盖一个 sector</text>
+<rect x="100" y="573" width="92" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="129" y="598" font-size="20" fill="#243247">t0</text>
+<path d="M 146 615 L 146 647" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 142.08531019299892 638.8959760788259 L 146 647 L 149.91468980700108 638.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="100" y="654" width="112" height="42" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="119" y="682" font-size="20" fill="#243247">in[0]</text>
+<rect x="212" y="573" width="92" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="241" y="598" font-size="20" fill="#243247">t1</text>
+<path d="M 258 615 L 258 647" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 254.08531019299892 638.8959760788259 L 258 647 L 261.9146898070011 638.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="212" y="654" width="112" height="42" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="231" y="682" font-size="20" fill="#243247">in[1]</text>
+<rect x="324" y="573" width="92" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="353" y="598" font-size="20" fill="#243247">t2</text>
+<path d="M 370 615 L 370 647" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 366.0853101929989 638.8959760788259 L 370 647 L 373.9146898070011 638.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="324" y="654" width="112" height="42" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="343" y="682" font-size="20" fill="#243247">in[2]</text>
+<rect x="436" y="573" width="92" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="465" y="598" font-size="20" fill="#243247">t3</text>
+<path d="M 482 615 L 482 647" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 478.0853101929989 638.8959760788259 L 482 647 L 485.9146898070011 638.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="436" y="654" width="112" height="42" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="455" y="682" font-size="20" fill="#243247">in[3]</text>
+<rect x="548" y="573" width="92" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="577" y="598" font-size="20" fill="#243247">t4</text>
+<path d="M 594 615 L 594 647" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 590.0853101929989 638.8959760788259 L 594 647 L 597.9146898070011 638.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="548" y="654" width="112" height="42" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="567" y="682" font-size="20" fill="#243247">in[4]</text>
+<rect x="660" y="573" width="92" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="689" y="598" font-size="20" fill="#243247">t5</text>
+<path d="M 706 615 L 706 647" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 702.0853101929989 638.8959760788259 L 706 647 L 709.9146898070011 638.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="660" y="654" width="112" height="42" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="679" y="682" font-size="20" fill="#243247">in[5]</text>
+<rect x="772" y="573" width="92" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="801" y="598" font-size="20" fill="#243247">t6</text>
+<path d="M 818 615 L 818 647" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 814.0853101929989 638.8959760788259 L 818 647 L 821.9146898070011 638.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="772" y="654" width="112" height="42" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="791" y="682" font-size="20" fill="#243247">in[6]</text>
+<rect x="884" y="573" width="92" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="913" y="598" font-size="20" fill="#243247">t7</text>
+<path d="M 930 615 L 930 647" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 926.0853101929989 638.8959760788259 L 930 647 L 933.9146898070011 638.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="884" y="654" width="112" height="42" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="903" y="682" font-size="20" fill="#243247">in[7]</text>
+<text x="290" y="736" font-size="22" fill="#243247">sector 0：8 × 4 byte = 32 byte，全部被使用</text>
+<rect x="28" y="786" width="1044" height="142" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="48" y="824" font-size="23" fill="#243247">扩展到完整 32-lane warp：两种映射都只需要 128 byte 有效数据</text>
+<text x="48" y="862" font-size="22" fill="#243247">跨步：32 个 sector × 32 B = 1024 B 覆盖范围；连续：4 × 32 B = 128 B。</text>
+<text x="48" y="902" font-size="20" fill="#243247">优化减少请求覆盖的 sector；实际 HBM 流量还取决于缓存等因素（CC 6.0+ 模型）。</text></g></svg>

@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1030" viewBox="0 0 1100 1030" role="img"><g font-family="Xiaolai, 'PingFang SC', 'Microsoft YaHei', sans-serif"><title>6.3 · 向量化：把单个线程的一次访问从 4 byte 加宽到 16 byte</title>
+<rect x="0" y="0" width="1100" height="1030" rx="5" fill="#fffdf6" stroke="#fffdf6" stroke-width="1.5"/>
+<text x="34" y="56" font-size="30" fill="#243247">6.3 · 向量化：把单个线程的一次访问从 4 byte 加宽到 16 byte</text>
+<text x="34" y="100" font-size="22" fill="#667286">取第一轮的线程 t0–t3 作示意；格子是 float，下标表示同一数组中的位置。</text>
+<text x="34" y="135" font-size="21" fill="#667286">箭头表示本线程读取的范围。这里只画 load；copy 的 store 使用相同映射。</text>
+<rect x="28" y="165" width="1044" height="228" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="48" y="205" font-size="24" fill="#243247">① scalar：每个线程这次读 1 个 float，仍然可以合并访存</text>
+<rect x="123" y="233" width="100" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="158" y="259" font-size="21" fill="#243247">t0</text>
+<path d="M 173 279 L 173 312" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 169.08531019299892 303.8959760788259 L 173 312 L 176.91468980700108 303.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="123" y="322" width="100" height="44" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="144" y="350" font-size="20" fill="#243247">in[0]</text>
+<rect x="371" y="233" width="100" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="406" y="259" font-size="21" fill="#243247">t1</text>
+<path d="M 421 279 L 421 312" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 417.0853101929989 303.8959760788259 L 421 312 L 424.9146898070011 303.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="371" y="322" width="100" height="44" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="392" y="350" font-size="20" fill="#243247">in[1]</text>
+<rect x="619" y="233" width="100" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="654" y="259" font-size="21" fill="#243247">t2</text>
+<path d="M 669 279 L 669 312" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 665.0853101929989 303.8959760788259 L 669 312 L 672.9146898070011 303.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="619" y="322" width="100" height="44" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="640" y="350" font-size="20" fill="#243247">in[2]</text>
+<rect x="867" y="233" width="100" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="902" y="259" font-size="21" fill="#243247">t3</text>
+<path d="M 917 279 L 917 312" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 913.0853101929989 303.8959760788259 L 917 312 L 920.9146898070011 303.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="867" y="322" width="100" height="44" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="888" y="350" font-size="20" fill="#243247">in[3]</text>
+<rect x="28" y="424" width="1044" height="264" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="48" y="464" font-size="24" fill="#243247">② float4：每个线程这次读 4 个连续 float，线程间也仍是连续范围</text>
+<rect x="123" y="493" width="100" height="38" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="158" y="519" font-size="21" fill="#243247">t0</text>
+<path d="M 173 539 L 173 572" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 169.08531019299892 563.8959760788259 L 173 572 L 176.91468980700108 563.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="65" y="582" width="54" height="44" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="82" y="611" font-size="21" fill="#243247">0</text>
+<rect x="119" y="582" width="54" height="44" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="136" y="611" font-size="21" fill="#243247">1</text>
+<rect x="173" y="582" width="54" height="44" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="190" y="611" font-size="21" fill="#243247">2</text>
+<rect x="227" y="582" width="54" height="44" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="244" y="611" font-size="21" fill="#243247">3</text>
+<text x="95" y="664" font-size="20" fill="#243247">in4[0] · 16 byte</text>
+<rect x="371" y="493" width="100" height="38" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="406" y="519" font-size="21" fill="#243247">t1</text>
+<path d="M 421 539 L 421 572" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 417.0853101929989 563.8959760788259 L 421 572 L 424.9146898070011 563.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="313" y="582" width="54" height="44" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="330" y="611" font-size="21" fill="#243247">4</text>
+<rect x="367" y="582" width="54" height="44" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="384" y="611" font-size="21" fill="#243247">5</text>
+<rect x="421" y="582" width="54" height="44" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="438" y="611" font-size="21" fill="#243247">6</text>
+<rect x="475" y="582" width="54" height="44" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="492" y="611" font-size="21" fill="#243247">7</text>
+<text x="343" y="664" font-size="20" fill="#243247">in4[1] · 16 byte</text>
+<rect x="619" y="493" width="100" height="38" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<text x="654" y="519" font-size="21" fill="#243247">t2</text>
+<path d="M 669 539 L 669 572" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 665.0853101929989 563.8959760788259 L 669 572 L 672.9146898070011 563.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="561" y="582" width="54" height="44" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<text x="578" y="611" font-size="21" fill="#243247">8</text>
+<rect x="615" y="582" width="54" height="44" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<text x="632" y="611" font-size="21" fill="#243247">9</text>
+<rect x="669" y="582" width="54" height="44" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<text x="686" y="611" font-size="21" fill="#243247">10</text>
+<rect x="723" y="582" width="54" height="44" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<text x="740" y="611" font-size="21" fill="#243247">11</text>
+<text x="591" y="664" font-size="20" fill="#243247">in4[2] · 16 byte</text>
+<rect x="867" y="493" width="100" height="38" rx="5" fill="#eee3fb" stroke="#243247" stroke-width="1.5"/>
+<text x="902" y="519" font-size="21" fill="#243247">t3</text>
+<path d="M 917 539 L 917 572" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 913.0853101929989 563.8959760788259 L 917 572 L 920.9146898070011 563.8959760788259" stroke="#243247" stroke-width="2" fill="none"/>
+<rect x="809" y="582" width="54" height="44" rx="5" fill="#eee3fb" stroke="#243247" stroke-width="1.5"/>
+<text x="826" y="611" font-size="21" fill="#243247">12</text>
+<rect x="863" y="582" width="54" height="44" rx="5" fill="#eee3fb" stroke="#243247" stroke-width="1.5"/>
+<text x="880" y="611" font-size="21" fill="#243247">13</text>
+<rect x="917" y="582" width="54" height="44" rx="5" fill="#eee3fb" stroke="#243247" stroke-width="1.5"/>
+<text x="934" y="611" font-size="21" fill="#243247">14</text>
+<rect x="971" y="582" width="54" height="44" rx="5" fill="#eee3fb" stroke="#243247" stroke-width="1.5"/>
+<text x="988" y="611" font-size="21" fill="#243247">15</text>
+<text x="839" y="664" font-size="20" fill="#243247">in4[3] · 16 byte</text>
+<rect x="28" y="722" width="1044" height="140" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="48" y="762" font-size="25" fill="#243247">固定工作量看收益：同样复制 16 个 float = 64 byte</text>
+<text x="48" y="802" font-size="23" fill="#243247">标量：16 次线程级元素读取；float4：4 次线程级向量读取。</text>
+<text x="48" y="840" font-size="21" fill="#243247">这是线程级计数，不是 warp 指令数，也不是 HBM 事务数；总数据量不变。</text>
+<text x="34" y="907" font-size="22" fill="#243247">对照代码：in4[t] 覆盖 in[4*t] 到 in[4*t+3]，并非每次跳过 3 个元素。</text>
+<text x="34" y="951" font-size="22" fill="#243247">条件：16-byte 对齐、尾部单独处理，且编译器确实生成宽 load/store。</text>
+<text x="34" y="994" font-size="21" fill="#667286">优化目标是减少访存指令与循环开销；实际指令宽度看 SASS，收益靠实测。</text></g></svg>

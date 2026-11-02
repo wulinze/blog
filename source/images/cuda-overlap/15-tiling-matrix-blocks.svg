@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1280" viewBox="0 0 1100 1280" role="img"><g font-family="Xiaolai, 'PingFang SC', 'Microsoft YaHei', sans-serif"><title>6.2 · tiling：先固定 C 的输出块，再配对 A、B 的输入块</title>
+<rect x="0" y="0" width="1100" height="1280" rx="5" fill="#fffdf6" stroke="#fffdf6" stroke-width="1.5"/>
+<text x="34" y="56" font-size="30" fill="#243247">6.2 · tiling：先固定 C 的输出块，再配对 A、B 的输入块</text>
+<text x="34" y="101" font-size="23" fill="#667286">A、B、C 都是 4×4 矩阵；每个大格是含 2×2 个元素的 tile。</text>
+<text x="34" y="135" font-size="21" fill="#667286">Aij / Bij / Cij 是分块编号（从 0 开始），不是单个矩阵元素。</text>
+<text x="34" y="188" font-size="25" fill="#243247">目标：C01（右上块） → 输出行 0、1；输出列 2、3。</text>
+<text x="34" y="236" font-size="25" fill="#243247">① K 的前半段：k = 0、1</text>
+<text x="70" y="283" font-size="23" fill="#243247">A：行 × K</text>
+<rect x="70" y="303" width="120" height="70" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="97" y="347" font-size="24" fill="#243247">A00</text>
+<rect x="190" y="303" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="217" y="347" font-size="24" fill="#667286">A01</text>
+<rect x="70" y="373" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="97" y="417" font-size="24" fill="#667286">A10</text>
+<rect x="190" y="373" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="217" y="417" font-size="24" fill="#667286">A11</text>
+<text x="428" y="283" font-size="23" fill="#243247">B：K × 列</text>
+<rect x="428" y="303" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="455" y="347" font-size="24" fill="#667286">B00</text>
+<rect x="548" y="303" width="120" height="70" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="575" y="347" font-size="24" fill="#243247">B01</text>
+<rect x="428" y="373" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="455" y="417" font-size="24" fill="#667286">B10</text>
+<rect x="548" y="373" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="575" y="417" font-size="24" fill="#667286">B11</text>
+<text x="786" y="283" font-size="23" fill="#243247">C：行 × 列</text>
+<rect x="786" y="303" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="813" y="347" font-size="24" fill="#667286">C00</text>
+<rect x="906" y="303" width="120" height="70" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<text x="933" y="347" font-size="24" fill="#243247">C01</text>
+<rect x="786" y="373" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="813" y="417" font-size="24" fill="#667286">C10</text>
+<rect x="906" y="373" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="933" y="417" font-size="24" fill="#667286">C11</text>
+<text x="350" y="377" font-size="32" fill="#243247">×</text>
+<path d="M 693 372 L 761 372" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 752.8959760788259 375.9146898070011 L 761 372 L 752.8959760788259 368.0853101929989" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="70" y="477" font-size="20" fill="#243247">A00：行 0、1；k 0、1</text>
+<text x="428" y="477" font-size="20" fill="#243247">B01：k 0、1；列 2、3</text>
+<text x="786" y="477" font-size="20" fill="#243247">C01 = A00 @ B01</text>
+<path d="M 127 495 L 251 495" stroke="#386bad" stroke-width="2" fill="none"/>
+<path d="M 242.8959760788259 498.9146898070011 L 251 495 L 242.8959760788259 491.0853101929989" stroke="#386bad" stroke-width="2" fill="none"/>
+<text x="70" y="534" font-size="21" fill="#243247">下一轮：A 向右换块</text>
+<path d="M 413 319 L 413 431" stroke="#27774c" stroke-width="2" fill="none"/>
+<path d="M 409.0853101929989 422.8959760788259 L 413 431 L 416.9146898070011 422.8959760788259" stroke="#27774c" stroke-width="2" fill="none"/>
+<text x="428" y="534" font-size="21" fill="#243247">下一轮：B 向下换块</text>
+<text x="786" y="534" font-size="21" fill="#243247">C 的位置始终不变</text>
+<text x="34" y="601" font-size="25" fill="#243247">② K 的后半段：k = 2、3</text>
+<text x="70" y="648" font-size="23" fill="#243247">A：行 × K</text>
+<rect x="70" y="668" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="97" y="712" font-size="24" fill="#667286">A00</text>
+<rect x="190" y="668" width="120" height="70" rx="5" fill="#dcecff" stroke="#243247" stroke-width="1.5"/>
+<text x="217" y="712" font-size="24" fill="#243247">A01</text>
+<rect x="70" y="738" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="97" y="782" font-size="24" fill="#667286">A10</text>
+<rect x="190" y="738" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="217" y="782" font-size="24" fill="#667286">A11</text>
+<text x="428" y="648" font-size="23" fill="#243247">B：K × 列</text>
+<rect x="428" y="668" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="455" y="712" font-size="24" fill="#667286">B00</text>
+<rect x="548" y="668" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="575" y="712" font-size="24" fill="#667286">B01</text>
+<rect x="428" y="738" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="455" y="782" font-size="24" fill="#667286">B10</text>
+<rect x="548" y="738" width="120" height="70" rx="5" fill="#dff3e5" stroke="#243247" stroke-width="1.5"/>
+<text x="575" y="782" font-size="24" fill="#243247">B11</text>
+<text x="786" y="648" font-size="23" fill="#243247">C：行 × 列</text>
+<rect x="786" y="668" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="813" y="712" font-size="24" fill="#667286">C00</text>
+<rect x="906" y="668" width="120" height="70" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<text x="933" y="712" font-size="24" fill="#243247">C01</text>
+<rect x="786" y="738" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="813" y="782" font-size="24" fill="#667286">C10</text>
+<rect x="906" y="738" width="120" height="70" rx="5" fill="#f0f0ed" stroke="#243247" stroke-width="1.5"/>
+<text x="933" y="782" font-size="24" fill="#667286">C11</text>
+<text x="350" y="742" font-size="32" fill="#243247">×</text>
+<path d="M 693 737 L 761 737" stroke="#243247" stroke-width="2" fill="none"/>
+<path d="M 752.8959760788259 740.9146898070011 L 761 737 L 752.8959760788259 733.0853101929989" stroke="#243247" stroke-width="2" fill="none"/>
+<text x="70" y="842" font-size="20" fill="#243247">A01：行 0、1；k 2、3</text>
+<text x="428" y="842" font-size="20" fill="#243247">B11：k 2、3；列 2、3</text>
+<text x="786" y="842" font-size="20" fill="#243247">C01 += A01 @ B11</text>
+<rect x="28" y="875" width="1044" height="166" rx="5" fill="#ffe4bf" stroke="#243247" stroke-width="1.5"/>
+<text x="48" y="915" font-size="25" fill="#243247">C01 = A00 @ B01 + A01 @ B11     （@ 表示矩阵乘法）</text>
+<text x="48" y="958" font-size="23" fill="#243247">为什么这样取？C 的行决定 A 的行；C 的列决定 B 的列。</text>
+<text x="48" y="1001" font-size="23" fill="#243247">同一轮 A 的列范围 = B 的行范围，才能把同一个 k 的两项相乘。</text>
+<text x="34" y="1086" font-size="24" fill="#243247">接到下文的数值例子：整个 C01 分两轮累加</text>
+<text x="48" y="1129" font-size="24" fill="#243247">第 1 轮 [[1, 2], [5, 6]]  +  第 2 轮 [[3, 11], [7, 23]]</text>
+<text x="48" y="1170" font-size="22" fill="#243247">= 最终 [[4, 13], [12, 29]]；其中左下格就是 C[1,2] = 5 + 7 = 12。</text>
+<text x="34" y="1228" font-size="21" fill="#667286">蓝色：本轮 A tile；绿色：本轮 B tile；橙色：累加目标。灰色块本轮不参与。</text></g></svg>

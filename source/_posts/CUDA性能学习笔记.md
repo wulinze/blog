@@ -308,16 +308,18 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessor(
 
 ### 6.1 合并访存：先看同一条指令中相邻线程的地址
 
-对一个满 warp 的一次标量 `float` load，假设起始地址按 32 byte 对齐。32 个线程连续读 32 个 float，共 128 byte，覆盖 4 个 32-byte sector；如果每个线程的地址相隔 32 个 float，就可能触及 32 个不同 sector。这里讨论的是典型 CC 6.0+ 下请求覆盖的 sector，**不是保证 HBM 必然搬运多少字节**：缓存命中、其他 warp 的复用与具体硬件会改变外部流量。
-
-所以合并访存关注的是**跨线程地址关系**，不是把多个 CUDA API 合成一个，也不是让每个线程循环次数更少。[CUDA Best Practices：Coalesced Access](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#coalesced-access-to-global-memory)
+先沿图中的箭头看**同一条 load 指令里，各线程分别读哪里**。lane 是线程在 warp 内的编号；一个 sector 是这里用于统计请求覆盖范围的 32-byte 单元，可容纳 8 个 float。图上半部每个线程只用到一个 sector 中的一个 float，下半部 8 个相邻线程一起用满一个 sector；两部分为便于阅读使用不同的格子宽度，均不表示物理距离。
 
 <figure class="cuda-diagram">
-<a href="/images/cuda-overlap/06-access-and-tiling.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/06-access-and-tiling.svg" alt="合并访存对应跨 lane 地址、tiling 对应分块复用、向量化对应单线程宽度" loading="lazy"></a>
-<figcaption>图 6：三个优化维度可以组合，但不能把它们当作同一件事。 <a href="/images/cuda-overlap/06-access-and-tiling.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/06-access-and-tiling.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+<a href="/images/cuda-overlap/14-coalescing-addresses.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/14-coalescing-addresses.svg" alt="合并访存前后：lane 0到7跨步读取下标0、32到224，分散在8个sector；连续读取下标0到7，只覆盖一个32-byte sector" loading="lazy"></a>
+<figcaption>图 6-1：箭头表示读取地址，橙色或绿色格子是需要的数据，空白格是本次未使用的数据。 <a href="/images/cuda-overlap/14-coalescing-addresses.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/14-coalescing-addresses.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
 </figure>
 
-图的上半部只画 8 个 lane，帮助观察相邻 lane 如何对上内存格子；32-lane 的 sector 计算另外写在图中。下半部让一个输出 tile 对上被复用的输入 tile。两者分别回答“怎么取”和“取来后用几次”。
+跟踪 lane 1：跨步版读 `in[32]`，落在 sector 4；连续版读 `in[1]`，与 lane 0 的 `in[0]` 落在同一个 sector 0。这里 sector 编号相对数组起点计算，起点按 32 byte 对齐。**优化的是线程到地址的映射，让同一次请求中需要的数据更集中。**
+
+扩展到一个满 warp 的一次标量 `float` load：32 个线程连续读 32 个 float，共 128 byte，覆盖 4 个 32-byte sector；如果每个线程的地址相隔 32 个 float，就会触及 32 个不同 sector。这里讨论的是典型 CC 6.0+ 下请求覆盖的 sector，**不是保证 HBM 必然搬运多少字节**：缓存命中、其他 warp 的复用与具体硬件会改变外部流量。
+
+所以合并访存关注的是**跨线程地址关系**，不是把多个 CUDA API 合成一个，也不是让每个线程循环次数更少。[CUDA Best Practices：Coalesced Access](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#coalesced-access-to-global-memory)
 
 [coalescing.cu](/downloads/cuda-overlap/coalescing.cu) 的两个版本都完成 `out[j]=in[j]`，只改变线程到地址的映射。基线把每个 1024 元素小块看成 32×32，做一个行列交换的下标排列；优化版直接用连续下标。每个元素仍恰好读写一次，所以校验目标相同。
 
@@ -335,7 +337,50 @@ int j_coalesced = i;
 
 考虑 `C = A @ B`，`@` 表示矩阵乘法：`A` 为 `M×K`，`B` 为 `K×N`，`C` 为 `M×N`。每个输出 `C[row,col]` 是 K 对元素乘积之和。一个 `T×T` 输出 tile 由一个 block 处理，沿 K 方向每次推进 T。
 
+#### 先看整块矩阵：为什么 A 取这个 tile，B 取另一个 tile
+
+先不代入元素的数值，取 `M=N=K=4,T=2`，把每个矩阵切成四块。图中的 `A00`、`A01` 等是**tile 的行列编号**，每一块仍是一个 `2×2` 小矩阵；例如 `A01` 是 A 的右上块，并非元素 `A[0,1]`。下面固定计算 C 的右上块 `C01`，先读第一行图，再读第二行图：蓝色 A 块向右移动，绿色 B 块向下移动，橙色 C 块一直留在原位累加。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-overlap/15-tiling-matrix-blocks.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/15-tiling-matrix-blocks.svg" alt="计算C的右上tile：第一轮A左上块乘B右上块，第二轮A右上块乘B右下块，两轮结果累加到同一个C右上块" loading="lazy"></a>
+<figcaption>图 6-2：每个大格包含 2×2 个元素；蓝色和绿色表示本轮选中的输入，橙色表示输出累加位置，灰色表示本轮不参与。 <a href="/images/cuda-overlap/15-tiling-matrix-blocks.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/15-tiling-matrix-blocks.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+选块规则来自单个输出的计算定义：
+
+```text
+C[row,col] = A[row,0]*B[0,col] + ... + A[row,K-1]*B[K-1,col]
+```
+
+因此，要计算 `C01` 中的全部四个输出，就有三个约束：
+
+1. **C 的行决定 A 的行。** 输出行固定为 0、1，A 就只取这两行；取 A 下半部会算到 C 的下半部。
+2. **C 的列决定 B 的列。** 输出列固定为 2、3，B 就只取这两列；取 B 左半部会算到 C 的左半部。
+3. **A 的列与 B 的行必须取同一段 K。** 第一轮配对 `k=0,1`，第二轮配对 `k=2,3`。例如把 `A00` 配上 `B11`，虽然形状仍能相乘，却会把 A 的第 0、1 列与 B 的第 2、3 行相乘，已经不是原来的矩阵乘法。
+
+用切片写得更直接。`a:b` 表示包含 a、不包含 b 的范围；两轮输入乘积都是 `2×2`，逐元素加到同一个 `2×2` 输出块：
+
+```text
+C[0:2,2:4] = A[0:2,0:2] @ B[0:2,2:4]
+           + A[0:2,2:4] @ B[2:4,2:4]
+
+分块记法：C01 = A00 @ B01 + A01 @ B11
+```
+
+第一轮只算完 K 的前半段，不能把它当成最终结果；第二轮继续加到原来的输出累加器。推广到任意完整方形 tile，令 `r0`、`c0` 为输出块的起始行列，`base` 为本轮 K 的起点：
+
+```text
+A_tile = A[r0:r0+T, base:base+T]     # T×T，固定输出行
+B_tile = B[base:base+T, c0:c0+T]     # T×T，固定输出列
+C_tile += A_tile @ B_tile           # T×T，跨轮保留累加值
+base 每轮增加 T；遍历完整个 K 后才写回 C_tile。
+```
+
+#### 选好块之后，复用发生在哪里
+
 本轮从 global 搬入 `T×T` 个 A 元素和 `T×T` 个 B 元素到 shared，然后让输出 tile 的线程重复使用它们。A 的一个值被同一输出行的多个线程使用，B 的一个值被同一输出列的多个线程使用。
+
+对应图 6-2 的第一轮，`A[1,0]` 同时参与 `C[1,2]` 和 `C[1,3]`，`B[0,2]` 同时参与 `C[0,2]` 和 `C[1,2]`。把输入块合作搬进 shared 后，各输出线程可以读取同一份值；这就是分块带来的复用。这里一个线程负责一个输出元素，后面的数值和代码都沿用这一规则。
 
 推导一个**只计本轮输入、忽略输出和边界的源码级模型**：本轮计算 `T^2` 个输出，每个进行 T 次 FMA，因此运算量为 `2*T^3 FLOP`；输入为 `2*T^2` 个 float，即 `8*T^2 byte`。
 
@@ -361,7 +406,7 @@ __syncthreads();
 
 #### 从图上的 tile 走到 `matmul_tiled` 的线程索引
 
-现在用小矩阵手算同一套实现规则。为方便展示，取 `M=N=K=4,T=2`；完整 CUDA demo 仍使用 `TILE=16`，这里只缩小数字，不改变算法。输入为：
+现在给图 6-2 的矩阵填上具体数字，手算同一套实现规则。仍取 `M=N=K=4,T=2`；完整 CUDA demo 使用 `TILE=16`，这里只缩小数字，不改变算法。输入为：
 
 ```text
 A = [[ 1,  2,  3,  4],    B = [[1, 0, 1, 0],
@@ -370,7 +415,17 @@ A = [[ 1,  2,  3,  4],    B = [[1, 0, 1, 0],
      [13, 14, 15, 16]]         [2, 0, 0, 2]]
 ```
 
-选 C 右上角的输出 tile：`blockIdx=(x=1,y=0)`。跟踪其中 `threadIdx=(x=0,y=1)`，它负责 `row=0*2+1=1`、`col=1*2+0=2`，即 `C[1,2]`。注意二维编号明确按 x、y 解释，矩阵下标按 row、col 解释。
+将这两个输入按图中的边界切块，可以先算完整个输出 tile：
+
+```text
+第 1 轮：A00 @ B01 = [[1,2], [5,6]] @ [[1,0], [0,1]]
+                  = [[1,2], [5,6]]
+第 2 轮：A01 @ B11 = [[3,4], [7,8]] @ [[1,1], [0,2]]
+                  = [[3,11], [7,23]]
+相加得到 C01      = [[4,13], [12,29]]
+```
+
+接着跟踪 C 右上角输出 tile 内的一个线程：`blockIdx=(x=1,y=0)`，`threadIdx=(x=0,y=1)`。它负责 `row=0*2+1=1`、`col=1*2+0=2`，即 `C[1,2]`，也就是上面结果块的左下格 12。注意二维编号明确按 x、y 解释，矩阵下标按 row、col 解释。
 
 <figure class="cuda-diagram">
 <a href="/images/cuda-overlap/10-tiling-walkthrough.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/10-tiling-walkthrough.svg" alt="用 TILE 等于2的例子将 C[1,2] 的计算分成两轮输入 tile，第一轮增加5，第二轮增加7" loading="lazy"></a>
@@ -394,6 +449,15 @@ A = [[ 1,  2,  3,  4],    B = [[1, 0, 1, 0],
 ### 6.3 向量化：改变单个线程的一次访问宽度
 
 `float4` 表示连续四个 float，尺寸 16 byte。在编译器生成相应宽访存指令时，可以用更少的 load/store 指令完成同样字节量。它不会自动减少需要读取的数据，也不会自动把标量 FP32 算术变成 Tensor Core 运算。
+
+先看同一批线程在一次循环中负责的范围：上半图每个线程拿一个元素，下半图每个线程拿四个相邻元素。颜色区分下半图中不同线程负责的连续范围；箭头表示读取关系，不表示执行时间。
+
+<figure class="cuda-diagram">
+<a href="/images/cuda-overlap/16-vectorized-access.svg" target="_blank" rel="noopener"><img src="/images/cuda-overlap/16-vectorized-access.svg" alt="标量与float4访问对比：标量线程t0到t3各读一个float，float4线程t0读0到3、t1读4到7、t2读8到11、t3读12到15" loading="lazy"></a>
+<figcaption>图 6-3：单个线程的访问宽度变大；两种映射的线程间地址都连续，都可以合并访问。 <a href="/images/cuda-overlap/16-vectorized-access.svg" target="_blank" rel="noopener">放大看图</a> · <a href="/images/cuda-overlap/16-vectorized-access.excalidraw" download>下载 Excalidraw 原图</a></figcaption>
+</figure>
+
+沿图跟踪线程 `t1`：标量版第一轮读取 `in[1]`；向量版第一轮读取 `in4[1]`，覆盖 `in[4]`、`in[5]`、`in[6]`、`in[7]`。因此同一批线程在一轮中处理的数据更多。对于固定的总数据量，向量版可减少循环和线程级访存操作；图中的“16 次与 4 次”是**线程级访问计数**，不能直接当作 warp 发出的指令条数或内存事务数。实际编译结果还需检查。
 
 [vectorized.cu](/downloads/cuda-overlap/vectorized.cu) 对比 scalar copy 和 `float4` copy；两者本来都可合并访问。完整代码使用 `cudaMalloc` 返回的对齐基址，每线程循环处理一个 float4，并用标量处理末尾不足四个的元素。
 
