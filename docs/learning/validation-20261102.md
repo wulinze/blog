@@ -27,3 +27,16 @@
 - 教学代码：`source/downloads/leetcuda/`。
 - 内容生成：`python3 tools/learning/build-series.py`，然后 `python3 tools/learning/update-index.py`。
 - 生成器会重建对应 Markdown 与 ZIP；修改正文应同步结构化原稿。
+
+## 发布与线上验证
+
+2026-11-02，37 篇新增文章和 2 篇补充已发布。线上浏览器逐篇验证全部通过：148 个交互案例、497 个步骤，以及图片、可编辑原图、实验 ZIP 字节一致性、手机布局、目录链接和浏览器异常检查。
+
+- [LLM 学习入口](https://wulinze.github.io/llm/)
+- [完整学习目录](https://wulinze.github.io/systems/gpu-learning-path/)
+- 源码提交：`6ae4da2ab249cd73d4a797640f56832802d218c4`。
+- 网站提交：`d3862741bb7ac278993ed88a62b8bef7d968837a`。
+- [源码 CI：通过](https://github.com/wulinze/blog/actions/runs/41423258601)。
+- [GitHub Pages 部署：通过](https://github.com/wulinze/wulinze.github.io/actions/runs/41423308963)。
+
+线上交互检查不改变上文 GPU 未执行的状态。
